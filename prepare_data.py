@@ -51,7 +51,7 @@ for j_dataset, dataset in enumerate(datasets[:]):
     y = np.array(y)
     lin_reg = stats.linregress(np.arange(len(y)), y)
     slope = lin_reg.slope*1e6
-    slope = np.max(y)*1e6
+    #slope = np.max(y[len(y)//2:])*1e6 - np.min(y[:len(y)//2])*1e6
 
     #lin_reg = LinearRegression(fit_intercept=False)
     #lin_reg.fit(np.arange(len(y))[:, None], y)
@@ -65,7 +65,7 @@ for j_dataset, dataset in enumerate(datasets[:]):
     freq, pxx = sg.welch(data.query('block_name=="Baseline0"')['p4'], 500, nperseg=500 * 2)
 
     alpha_pxx = pxx[(freq >= ALPHA_BAND[0]) & (freq <= ALPHA_BAND[1])]
-    snr = alpha_pxx.max() / alpha_pxx.min()
+    snr = pxx[(freq >= ALPHA_BAND[0]) & (freq <= ALPHA_BAND[1])].max() / pxx[(freq >= ALPHA_BAND_EXT[0]) & (freq <= ALPHA_BAND_EXT[1])].min()
 
 
 
@@ -77,7 +77,7 @@ for j_dataset, dataset in enumerate(datasets[:]):
 
 stats_df['logsnr'] = np.log10(stats_df['snr'])
 plt.figure(dpi=200)
-sns.lmplot('snr', 'slope', stats_df, 'fb_type')
+sns.lmplot('logsnr', 'slope', stats_df, 'fb_type')
 #sns.scatterplot('snr', 'slope', 'fb_type', data=stats_df)
 
 
