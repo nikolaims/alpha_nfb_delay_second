@@ -6,10 +6,20 @@ import pylab as plt
 import seaborn as sns
 from scipy import stats
 from sklearn.linear_model import LinearRegression
+import h5py
 
-# import nfblab data loader
+# import nfb lab data loader
 sys.path.insert(0, '/home/kolai/Projects/nfblab/nfb')
 from utils.load_results import load_data
+
+# band hilbert helper
+def band_hilbert(x, fs, band, N=None, axis=-1):
+    x = np.asarray(x)
+    Xf = np.fft.fft(x, N, axis=axis)
+    w = np.fft.fftfreq(x.shape[0], d=1. / fs)
+    Xf[(w < band[0]) | (w > band[1])] = 0
+    x = np.fft.ifft(Xf, axis=axis)
+    return 2*x
 
 
 # collect info
@@ -20,9 +30,14 @@ datasets = [d for d in info['dataset'].unique() if (d is not np.nan)
 
 
 # collect recordings
-probes_df = pd.DataFrame(columns=['signal',  'dataset', 'fb_type', 'block_name', 'block_number', 'p4'])
+subj_bands = {}
+probes_df = pd.DataFrame(columns=['signal',  'dataset', 'fb_type', 'block_name', 'block_number', 'p4', 'signal_offline'])
 for j_dataset, dataset in enumerate(datasets[:]):
     dataset_path = '{}/{}/experiment_data.h5'.format(data_path, dataset)
+    with h5py.File(dataset_path) as f:
+        subj_bands[dataset] = f['protocol10/signals_stats/Alpha0/bandpass'].value
+
+
     df, fs, channels, p_names = load_data(dataset_path)
     fb_type = df.query('block_number==6')['block_name'].values[0]
     print(dataset)
@@ -32,19 +47,25 @@ for j_dataset, dataset in enumerate(datasets[:]):
     print('{} outliers'.format(sum(df['signal_Alpha0'] > th)/fs))
     df = df.query('signal_Alpha0 < {}'.format(th))
 
+    # extract offline signal
+    env = np.abs(band_hilbert(df['P4'].values, fs, subj_bands[dataset]))
+
+
+
     probes_df = probes_df.append(pd.DataFrame({'signal': df['signal_Alpha0'].values, 'dataset': dataset,
                                                'fb_type': fb_type, 'block_name': df['block_name'].values,
-                                               'block_number': df['block_number'].values, 'p4': df['P4'].values}), ignore_index=True)
+                                               'block_number': df['block_number'].values, 'p4': df['P4'].values,
+                                               'signal_offline': env}), ignore_index=True)
 
-ALPHA_BAND = (9, 11)
-ALPHA_BAND_EXT = (6, 16)
+FLANKER_WIDTH = 2
 FS = 500
 stats_df = pd.DataFrame(columns=['dataset', 'fb_type', 'metric', 'metric_type', 'block_number', 'snr'])
 for j_dataset, dataset in enumerate(datasets[:]):
     print(dataset)
 
     data = probes_df.query('dataset=="{}" '.format(dataset))
-    th = data.query('block_name=="FB"')['signal'].median()*2
+    data['signal'] = data['signal_offline']
+    th = data.query('block_name=="FB" & block_number==6')['signal'].median()*2
     y = []
     n_spindles = []
     duration = []
@@ -68,8 +89,10 @@ for j_dataset, dataset in enumerate(datasets[:]):
 
     freq, pxx = sg.welch(data.query('block_name=="Baseline0"')['p4'], 500, nperseg=500 * 2)
 
-    alpha_pxx = pxx[(freq >= ALPHA_BAND[0]) & (freq <= ALPHA_BAND[1])]
-    snr = pxx[(freq >= ALPHA_BAND[0]) & (freq <= ALPHA_BAND[1])].max() / pxx[(freq >= ALPHA_BAND_EXT[0]) & (freq <= ALPHA_BAND_EXT[1])].min()
+    band = subj_bands[dataset]
+    sig = pxx[(freq >= band[0]) & (freq <= band[1])].mean()
+    noise = pxx[((freq >= band[0]-FLANKER_WIDTH) & (freq <= band[0])) | ((freq >= band[1]) & (freq <= band[1] + FLANKER_WIDTH))].mean()
+    snr =  sig/noise
 
 
 
@@ -104,4 +127,8 @@ sns.relplot('block_number', 'metric', col='fb_type', row='metric_type', data=sta
             kind='line',  col_order=['FB0', 'FB250', 'FB500', 'FBMock'], palette='viridis_r', facet_kws={'sharey':'row'})
 #plt.savefig('rt_signal_stats.png', dpi=100)
 #sns.relplot('block_number', 'magnitude', col='fb_type', data=stats_df, kind='line', col_order=['FB0', 'FB250', 'FB500', 'FBMock'], color='k', fig=plt.gcf()))
+
+plt.hist(stats_df['snr'].unique(), bins=10)
+
+stats_df.to_csv('spindles_stats.csv', index=False)
 
