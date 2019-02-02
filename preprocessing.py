@@ -41,7 +41,8 @@ if PLOT_ARTIFACTS_RES:
 
 # store data
 subj_bands = {}
-probes_df = pd.DataFrame(columns=['online_envelope', 'dataset', 'fb_type', 'block_name', 'block_number', 'P4', 'envelope'])
+columns=['online_envelope', 'dataset', 'fb_type', 'block_name', 'block_number', 'P4', 'envelope', 'snr']
+probes_df = pd.DataFrame(columns=columns)
 for j_dataset, dataset in enumerate(datasets):
     dataset_path = '{}/{}/experiment_data.h5'.format(data_path, dataset)
 
@@ -92,7 +93,7 @@ for j_dataset, dataset in enumerate(datasets):
     probes_df = probes_df.append(pd.DataFrame({'online_envelope': df['signal_Alpha0'].values, 'dataset': dataset,
                                                'fb_type': fb_type, 'block_name': df['block_name'].values,
                                                'block_number': df['block_number'].values, 'P4': df['P4'].values,
-                                               'envelope': env}), ignore_index=True)
+                                               'envelope': env, 'snr': snr}), ignore_index=True)
 
     if PLOT_ARTIFACTS_RES:
         ax = ts_axes[j_dataset//2, j_dataset%2]
