@@ -25,15 +25,14 @@ for j_dataset, dataset in enumerate(datasets[:]):
 
     median = data.query('block_name=="FB"')['signal'].median()
 
-    threshold_factors = np.arange(1.25, 3.1, 0.25)
+    threshold_factors = np.arange(1, 3.1, 0.125)
 
     for block_number_j, block_number in enumerate(data.query('block_name=="FB"')['block_number'].unique()):
+        signal = data.query('block_number=={}'.format(block_number))['signal'].values
+        magnitude_j = signal.mean() * 1e6
+        print(block_number_j)
         for threshold_factor in threshold_factors:
             threshold = threshold_factor * median
-            signal = data.query('block_number=={}'.format(block_number))['signal'].values
-
-
-            magnitude_j = signal.mean() * 1e6
             spindles_mask = signal > threshold
             n_spindles_j = sum(np.diff(spindles_mask.astype(int)) == 1)
             duration_j = sum(spindles_mask) / n_spindles_j / FS

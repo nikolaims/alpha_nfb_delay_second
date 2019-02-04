@@ -32,10 +32,12 @@ for factors_values, group in scores_df.groupby(factor_names):
     p_values_df = p_values_df.append(pd.DataFrame(pvalue_dict), ignore_index=True)
 
 
-g = sns.relplot('threshold_factor', 'pvalue', 'fb_type', col='metric_type', data=p_values_df, kind='line', row='pvalue_type')
+g = sns.relplot('threshold_factor', 'pvalue', 'fb_type', col='metric_type', data=p_values_df, kind='line',
+                row='pvalue_type', col_order=['magnitude', 'n_spindles', 'duration', 'amplitude'])
 g.axes[0][0].semilogy()
 [[ax.axhline(p, color='k', linestyle='--') for ax in g.axes.flatten()] for p in [0.05, 0.01, 0.001]]
 
 
-g = sns.catplot('fb_type', 'score', 'fb_type', col='metric_type', data=scores_df.query('threshold_factor==2'), kind='box', sharey=False)
+g = sns.catplot('fb_type', 'score', 'fb_type', col='metric_type', data=scores_df, kind='box', sharey=False)
 [[ax.axhline(p, color='k', linestyle='--') for ax in g.axes[0]] for p in [0]]
+
