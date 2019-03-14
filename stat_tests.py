@@ -41,3 +41,6 @@ g.axes[0][0].semilogy()
 g = sns.catplot('fb_type', 'score', 'fb_type', col='metric_type', data=scores_df, kind='box', sharey=False)
 [[ax.axhline(p, color='k', linestyle='--') for ax in g.axes[0]] for p in [0]]
 
+stats_df['logsnr'] = np.log10(stats_df['snr'])
+sns.relplot('block_number', 'metric', data=stats_df.query('threshold_factor==1.5'), hue='logsnr', col='fb_type', kind='line', ci=None,
+            estimator=np.median, col_order=['FB0', 'FB250', 'FB500', 'FBMock'], row='metric_type', facet_kws={'sharey': 'none'}, palette='viridis_r')

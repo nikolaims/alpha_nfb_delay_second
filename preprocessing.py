@@ -5,6 +5,7 @@ import sys
 import pylab as plt
 import h5py
 from mne.viz import plot_topomap
+from tqdm import tqdm_gui
 
 # import nfb lab data loader
 sys.path.insert(0, '/home/kolai/Projects/nfblab/nfb')
@@ -12,7 +13,7 @@ from utils.load_results import load_data
 from pynfb.inlets.montage import Montage
 
 
-PLOT_ARTIFACTS_RES = False
+PLOT_ARTIFACTS_RES = True
 FLANKER_WIDTH = 2
 FS = 500
 GFP_THRESHOLD = 100e-6
@@ -29,7 +30,7 @@ def band_hilbert(x, fs, band, N=None, axis=-1):
 
 # collect info
 data_path = '/home/kolai/Data/alpha_delay2'
-info = pd.read_csv('alpha_subject_2.csv')
+info = pd.read_csv('alpha_subject_2_full.csv')
 datasets = [d for d in info['dataset'].unique() if (d is not np.nan)
             and (info.query('dataset=="{}"'.format(d))['type'].values[0] in ['FB0', 'FBMock', 'FB250', 'FB500'])][:]
 
@@ -41,9 +42,10 @@ if PLOT_ARTIFACTS_RES:
 
 # store data
 subj_bands = {}
-columns=['online_envelope', 'dataset', 'fb_type', 'block_name', 'block_number', 'P4', 'envelope', 'snr']
+columns=['online_envelope', 'dataset', 'fb_type', 'block_name', 'block_number', 'envelope', 'snr']
 probes_df = pd.DataFrame(columns=columns)
-for j_dataset, dataset in enumerate(datasets):
+probes_df['dataset'] = probes_df['dataset'].astype('category')
+for j_dataset, dataset in enumerate(datasets[:]):
     dataset_path = '{}/{}/experiment_data.h5'.format(data_path, dataset)
 
     # load fb signal params
@@ -81,18 +83,18 @@ for j_dataset, dataset in enumerate(datasets):
     snr = sig / noise
 
     # exclude subjects with snr < 1
-    if snr<1: continue
+    #if snr<1: continue
 
     # extract offline signal
     env = np.abs(band_hilbert(df['P4'].values, fs, subj_bands[dataset]))
 
     # print info
-    print('{:40s} {:10s} {:.2f}'.format(dataset, fb_type, snr))
+    print('{:3.1f} {:40s} {:10s} {:.2f}'.format(j_dataset/len(datasets)*100, dataset, fb_type, snr))
 
     # save data
     probes_df = probes_df.append(pd.DataFrame({'online_envelope': df['signal_Alpha0'].values, 'dataset': dataset,
                                                'fb_type': fb_type, 'block_name': df['block_name'].values,
-                                               'block_number': df['block_number'].values, 'P4': df['P4'].values,
+                                               'block_number': df['block_number'].values,
                                                'envelope': env, 'snr': snr}), ignore_index=True)
 
     if PLOT_ARTIFACTS_RES:
