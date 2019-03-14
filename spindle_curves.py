@@ -28,7 +28,7 @@ for j_dataset, dataset in enumerate(datasets[:]):
 
     median = data.query('block_name=="FB"')['online_envelope'].median()
 
-    threshold_factors = [1.25, 1.5, 1.75, 2]# np.arange(1, 3.1, 0.125)
+    threshold_factors = [1.75]# np.arange(1, 3.1, 0.125)
 
     delay = {'FB0': 0, 'FB250': 250*FS//1000, 'FB500': 500*FS//1000, 'FBMock': 60*FS}
     signal = np.roll(data.query('block_name=="FB"')['online_envelope'].values, delay[fb_type])
@@ -55,6 +55,6 @@ for j_dataset, dataset in enumerate(datasets[:]):
 
 
 
-g = sns.relplot('time', 'spindle', data=stats_df, hue='fb_type', kind='line', ci=95, estimator=np.mean, hue_order=['FB0', 'FB250', 'FB500', 'FBMock'], col= 'threshold_factor')
+g = sns.relplot('time', 'spindle', data=stats_df, hue='fb_type', kind='line', ci=None, estimator=np.mean, hue_order=['FB0', 'FB250', 'FB500', 'FBMock'], col= 'threshold_factor')
 
 [ax.axvline(0, color='k') for ax in g.axes.flatten()]
