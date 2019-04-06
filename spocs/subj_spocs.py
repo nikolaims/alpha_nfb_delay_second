@@ -78,7 +78,8 @@ class SPoCFix(SPoC):
         evecs = evecs.real
         # sort vectors
         ix = np.argsort(evals)[::-1]
-        print(evals[ix])
+        self.covs = evals[ix]
+        print(self.covs)
 
         # sort eigenvectors
         evecs = evecs[:, ix].T
@@ -105,65 +106,64 @@ info = pd.read_csv('alpha_subject_2_full.csv')
 datasets = [d for d in info['dataset'].unique() if (d is not np.nan)
             and (info.query('dataset=="{}"'.format(d))['type'].values[0] in ['FB0', 'FBMock', 'FB250', 'FB500'])][:]
 stats_df = pd.read_csv('spindles_stats_norm.csv')
-for FB in ['FB0', 'FB250', 'FB500', 'FBMock']:
-    # store data
-    subj_bands = {}
 
+subj_bands = {}
+
+
+for j_dataset, dataset in enumerate(datasets[:]):
     x = []
     y = []
-    for j_dataset, dataset in enumerate(datasets[:]):
-        dataset_path = '{}/{}/experiment_data.h5'.format(data_path, dataset)
+    dataset_path = '{}/{}/experiment_data.h5'.format(data_path, dataset)
 
-        # load fb signal params
-        with h5py.File(dataset_path) as f:
-            eye_rejection_matrix = f['protocol10/signals_stats/Alpha0/rejections/rejection1'].value
-            subj_bands[dataset] = f['protocol10/signals_stats/Alpha0/bandpass'].value
+    # load fb signal params
+    with h5py.File(dataset_path) as f:
+        eye_rejection_matrix = f['protocol10/signals_stats/Alpha0/rejections/rejection1'].value
+        subj_bands[dataset] = f['protocol10/signals_stats/Alpha0/bandpass'].value
 
-        # load data
-        df, fs, channels, p_names = load_data(dataset_path)
+    # load data
+    df, fs, channels, p_names = load_data(dataset_path)
 
-        # drop pauses
-        df = df.loc[df['block_name'].isin(['Baseline0', 'Close', 'Baseline', 'FB0', 'FB250', 'FB500', 'FBMock'])]
+    # drop pauses
+    df = df.loc[df['block_name'].isin(['Baseline0', 'Close', 'Baseline', 'FB0', 'FB250', 'FB500', 'FBMock'])]
 
-        # get FB type
-        fb_type = df.query('block_number==6')['block_name'].values[0]
-        if fb_type != FB: continue
-        print(dataset)
+    # get FB type
+    fb_type = df.query('block_number==6')['block_name'].values[0]
+    print(dataset)
 
-        # rename FB blocks to "FB"
-        df['block_name'] = df['block_name'].apply(lambda x: 'FB' if 'FB' in x else x)
+    # rename FB blocks to "FB"
+    df['block_name'] = df['block_name'].apply(lambda x: 'FB' if 'FB' in x else x)
 
-        # remove eyes artifacts ICA
-        df[channels] = df[channels].values.dot(eye_rejection_matrix)
+    # remove eyes artifacts ICA
+    df[channels] = df[channels].values.dot(eye_rejection_matrix)
 
-        # GFP threshold arthifact segments
-        th = np.abs(df[channels[:-1]]).rolling(int(fs), center=True).max().mean(1)
-        df = df.loc[th<GFP_THRESHOLD]
+    # GFP threshold arthifact segments
+    th = np.abs(df[channels[:-1]]).rolling(int(fs), center=True).max().mean(1)
+    df = df.loc[th<GFP_THRESHOLD]
 
-        # filter data
+    # filter data
 
 
-        # estimate snr
+    # estimate snr
 
-        montage = Montage(channels[:-1])
-        b_numbers = df.query('block_name=="FB"')['block_number'].unique()
-        baseline_b = [2, 4]
-        band = subj_bands[dataset]
-        ba = sg.butter(4, [band[0]/fs*2, band[1]/fs*2], 'band')
-        xs = [sg.filtfilt(*ba, df.query('block_number=={}'.format(b))[channels[:-1]].values[:int(fs)*100], axis=0).T for b in b_numbers]
-        x += [xx for xx in np.array(xs)/np.std(xs)]
+    montage = Montage(channels[:-1])
+    b_numbers = df.query('block_name=="FB"')['block_number'].unique()
+    baseline_b = [2, 4]
+    band = subj_bands[dataset]
+    ba = sg.butter(4, [band[0]/fs*2, band[1]/fs*2], 'band')
+    xs = [sg.filtfilt(*ba, df.query('block_number=={}'.format(b))[channels[:-1]].values[:int(fs)*100], axis=0).T for b in b_numbers]
+    x += xs
 
 
-        metric = stats_df.query('dataset=="{}" & metric_type=="magnitude" & threshold_factor==2'.format(dataset))['metric'].values
-        score = metric**2
-        y += score.tolist()
-        # xs = [sg.filtfilt(*ba, df.query('block_number=={}'.format(b))[channels[:-1]].values[:int(fs)*100], axis=0).T for b in b_numbers]
-        # x += [xx for xx in (np.array(xs) - np.mean(xs))/np.std(xs)]
-        # # y += [sg.filtfilt(*ba, df.query('block_number=={}'.format(b))['P4'].values[:int(fs)*100]).std() for b in b_numbers]
-        # # ys = [df.query('block_number=={}'.format(b))['signal_Alpha0'].values[:int(fs) * 100].mean() for b in
-        # #       b_numbers]
-        # y += [n for n in range(1, 16)]
-        #y += sg.filtfilt(np.ones(4)/4, [1.], ys)
+    metric = stats_df.query('dataset=="{}" & metric_type=="magnitude" & threshold_factor==2'.format(dataset))['metric'].values
+    score = metric[8:].mean() / metric[1:8].mean()
+    y += metric.tolist()
+    # xs = [sg.filtfilt(*ba, df.query('block_number=={}'.format(b))[channels[:-1]].values[:int(fs)*100], axis=0).T for b in b_numbers]
+    # x += [xx for xx in (np.array(xs) - np.mean(xs))/np.std(xs)]
+    # # y += [sg.filtfilt(*ba, df.query('block_number=={}'.format(b))['P4'].values[:int(fs)*100]).std() for b in b_numbers]
+    # # ys = [df.query('block_number=={}'.format(b))['signal_Alpha0'].values[:int(fs) * 100].mean() for b in
+    # #       b_numbers]
+    # y += [n for n in range(1, 16)]
+    #y += sg.filtfilt(np.ones(4)/4, [1.], ys)
 
     # SPoC
     print('spoc')
@@ -171,7 +171,8 @@ for FB in ['FB0', 'FB250', 'FB500', 'FBMock']:
     spoc.fit(np.array(x), np.array(y))
     a = spoc.transform(np.array(x))
     corrs = [np.corrcoef(a[:, k], np.array(y))[0,1] for k in range(32)]
-    ix = np.argsort(corrs)[::-1][[0, 1, 2, 3, -4, -3, -2, -1]]
+    ix = np.argsort(corrs)[::-1][[0, 1, 2, 3, 4, 5, 6, -7, -6, -5 -4, -3, -2, -1]]
+    ix = np.arange(len(corrs))[[0, 1, 2, 3, 4, 5, 6, -7, -6, -5 - 4, -3, -2, -1]]
 
 
 
@@ -179,23 +180,23 @@ for FB in ['FB0', 'FB250', 'FB500', 'FBMock']:
     fig = spoc.plot_patterns(create_info(channels[:-1], sfreq=fs, ch_types='eeg', montage=read_montage('standard_1005')), components=ix)#, vmin=-2, vmax=2)
 
 
-    [ax.set_title('{}_{}'.format(FB, k)) for k, ax in enumerate(fig.axes[:-1])]
-    [ax.set_xlabel('{:.3f}'.format(corrs[k])) for k, ax in zip(ix, fig.axes)]
-    plt.savefig('spocs/{}_topo_fb.png'.format(FB))
+    [ax.set_title('{}_{}'.format(fb_type, k)) for k, ax in enumerate(fig.axes[:-1])]
+    [ax.set_xlabel('{:.3f}\n{:.3f}'.format(corrs[k], spoc.covs[k])) for k, ax in zip(ix, fig.axes)]
+    plt.savefig('spocs/{}_{}_topo_fb.png'.format(fb_type, dataset))
     plt.close('all')
 
 
 
     #y = (np.array(y)
-    plt.plot(y, 'k', alpha=0.8)
-    [plt.plot(a[:, ix[k]]*np.std(y)+np.mean(y), alpha=0.8, zorder=-k+100, linestyle='--' if k>=len(ix)//2 else '-') for k in range(len(ix))]
-    plt.legend(['signal_Alpha0'] + ['{}_{}'.format(FB, k) for k in range(len(ix))] )
-
-    plt.xticks(np.arange(0, 150, 15))
-    plt.gca().set_xticklabels(['s{}'.format(k+1) for k in range(10)])
-    plt.savefig('spocs/{}_target_fb.png'.format(FB))
-    plt.close('all')
-        #plt.subplots_adjust(left=2)
+    # plt.plot(y, 'k', alpha=0.8)
+    # [plt.plot(a[:, ix[k]]*np.std(y)+np.mean(y), alpha=0.8, zorder=-k+100, linestyle='--' if k>=len(ix)//2 else '-') for k in range(len(ix))]
+    # plt.legend(['signal_Alpha0'] + ['{}_{}'.format(fb_type, k) for k in range(len(ix))] )
+    #
+    # plt.xticks(np.arange(0, 150, 15))
+    # plt.gca().set_xticklabels(['s{}'.format(k+1) for k in range(10)])
+    # plt.savefig('spocs/{}_{}_target_fb.png'.format(fb_type, dataset))
+    # plt.close('all')
+    #     #plt.subplots_adjust(left=2)
 
         #plt.figure()
         # plt.plot(x.dot(spoc.filters[:, 1]))
