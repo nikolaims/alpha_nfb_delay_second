@@ -105,7 +105,7 @@ info = pd.read_csv('alpha_subject_2_full.csv')
 datasets = [d for d in info['dataset'].unique() if (d is not np.nan)
             and (info.query('dataset=="{}"'.format(d))['type'].values[0] in ['FB0', 'FBMock', 'FB250', 'FB500'])][:]
 stats_df = pd.read_csv('spindles_stats_norm.csv')
-for FB in ['FB0', 'FB250', 'FB500', 'FBMock'][::-1]:
+for FB in ['FB0', 'FB250', 'FB500', 'FBMock']:
     # store data
     subj_bands = {}
 
@@ -150,13 +150,13 @@ for FB in ['FB0', 'FB250', 'FB500', 'FBMock'][::-1]:
         baseline_b = [2, 4]
         band = subj_bands[dataset]
         ba = sg.butter(4, [band[0]/fs*2, band[1]/fs*2], 'band')
-        xs = np.hstack([sg.filtfilt(*ba, df.query('block_number=={}'.format(b))[channels[:-1]].values[:int(fs)*55], axis=0).T for b in baseline_b])
-        x += [xs]
+        xs = [sg.filtfilt(*ba, df.query('block_number=={}'.format(b))[channels[:-1]].values[:int(fs)*100], axis=0).T for b in b_numbers]
+        x += xs
 
 
         metric = stats_df.query('dataset=="{}" & metric_type=="magnitude" & threshold_factor==2'.format(dataset))['metric'].values
         score = metric[8:].mean() / metric[1:8].mean()
-        y += [score]
+        y += metric.tolist()
         # xs = [sg.filtfilt(*ba, df.query('block_number=={}'.format(b))[channels[:-1]].values[:int(fs)*100], axis=0).T for b in b_numbers]
         # x += [xx for xx in (np.array(xs) - np.mean(xs))/np.std(xs)]
         # # y += [sg.filtfilt(*ba, df.query('block_number=={}'.format(b))['P4'].values[:int(fs)*100]).std() for b in b_numbers]
@@ -181,7 +181,7 @@ for FB in ['FB0', 'FB250', 'FB500', 'FBMock'][::-1]:
 
     [ax.set_title('{}_{}'.format(FB, k)) for k, ax in enumerate(fig.axes[:-1])]
     [ax.set_xlabel('{:.3f}'.format(corrs[k])) for k, ax in zip(ix, fig.axes)]
-    plt.savefig('spocs/{}_topo.png'.format(FB))
+    plt.savefig('spocs/{}_topo_fb.png'.format(FB))
     plt.close('all')
 
 
@@ -191,9 +191,9 @@ for FB in ['FB0', 'FB250', 'FB500', 'FBMock'][::-1]:
     [plt.plot(a[:, ix[k]]*np.std(y)+np.mean(y), alpha=0.8, zorder=-k+100, linestyle='--' if k>=len(ix)//2 else '-') for k in range(len(ix))]
     plt.legend(['signal_Alpha0'] + ['{}_{}'.format(FB, k) for k in range(len(ix))] )
 
-    plt.xticks(np.arange(0, 15))
+    plt.xticks(np.arange(0, 150, 15))
     plt.gca().set_xticklabels(['s{}'.format(k+1) for k in range(10)])
-    plt.savefig('spocs/{}_target.png'.format(FB))
+    plt.savefig('spocs/{}_target_fb.png'.format(FB))
     plt.close('all')
         #plt.subplots_adjust(left=2)
 
