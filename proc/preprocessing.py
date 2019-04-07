@@ -11,6 +11,8 @@ from tqdm import tqdm_gui
 sys.path.insert(0, '/home/kolai/Projects/nfblab/nfb')
 from utils.load_results import load_data
 from pynfb.inlets.montage import Montage
+from proc.settings import CHANNELS as channels
+channels += ['PHOTO']
 
 
 PLOT_ARTIFACTS_RES = True
@@ -34,14 +36,6 @@ info = pd.read_csv('alpha_subject_2_full.csv')
 datasets = [d for d in info['dataset'].unique() if (d is not np.nan)
             and (info.query('dataset=="{}"'.format(d))['type'].values[0] in ['FB0', 'FBMock', 'FB250', 'FB500'])][:]
 
-channels = ['FP1', 'FP2', 'F7', 'F3', 'FZ', 'F4', 'F8', 'FT9', 'FC5', 'FC1', 'FC2', 'FC6', 'FT10', 'C3', 'CZ', 'C4',
-            'T8', 'TP9', 'CP5', 'CP1', 'CP2', 'CP6', 'TP10', 'P7', 'P3', 'P4', 'P8', 'O1', 'OZ', 'O2', 'T7', 'PZ',
-            'PHOTO']
-
-block_names = [None, 'Close', 'Baseline', 'PauseBL', 'Baseline', 'PauseFB', 'FB', 'PauseFB', 'FB', 'PauseFB', 'FB',
-               'PauseFB', 'FB', 'PauseFB', 'FB', 'PauseFB', 'FB', 'PauseFB', 'FB', 'PauseFB', 'FB', 'PauseFB', 'FB',
-               'PauseFB', 'FB', 'PauseFB', 'FB', 'PauseFB', 'FB', 'PauseFB', 'FB', 'PauseFB', 'FB', 'PauseFB', 'FB',
-               'PauseBL', 'Baseline']
 
 
 # store data
