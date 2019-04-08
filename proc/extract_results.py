@@ -23,8 +23,10 @@ datasets_df = pd.read_pickle('data/info_allsubjs.pkl')
 
 # prepare data frame to save metrics
 columns=['subj_id', 'channel', 'fb_type', 'metric', 'metric_type', 'block_number','threshold_factor']
-stats_df = pd.DataFrame(columns=columns)
+
 for subj_id in datasets_df['subj_id'].values[:]:
+    stats_df = pd.DataFrame(columns=columns)
+
     # subj eeg
     data = probes_df.query('subj_id=="{}" '.format(subj_id))
 
@@ -81,3 +83,10 @@ for subj_id in datasets_df['subj_id'].values[:]:
                      'metric_type': ['magnitude', 'n_spindles', 'duration', 'amplitude'],
                      'block_number': block_number, 'threshold_factor': threshold_factor}), ignore_index=True)
 
+    print(stats_df.memory_usage().sum()/1024/1024)
+    stats_df.to_pickle('data/metrics_chs_ica{}.pkl'.format(subj_id))
+
+stats_df = pd.DataFrame(columns=columns)
+for subj_id in datasets_df['subj_id'].values[:]:
+    stats_df = stats_df.append(pd.read_pickle('data/metrics_chs_ica{}.pkl'.format(subj_id)))
+stats_df.to_pickle('data/metrics_chs_ica_all.pkl')
