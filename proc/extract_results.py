@@ -13,7 +13,8 @@ def band_hilbert(x, fs, band, N=None, axis=-1):
     x = np.fft.ifft(Xf, axis=axis)
     return 2*x
 
-threshold_factors = np.arange(1, 3.1, 0.125)
+split_fb_blocks = True
+threshold_factors = [2] #np.arange(1, 3.1, 0.125)
 
 # load pre filtered data
 probes_df = pd.read_pickle('data/eeg_allsubjs_eyefree_1_45hz_down250hz.pkl')
@@ -42,6 +43,14 @@ for subj_id in datasets_df['subj_id'].values[:]:
     # block numbers utils
     block_numbers = data['block_number'].values
     unique_block_numbers = np.unique(block_numbers)
+    if split_fb_blocks:
+        split_block_numbers = []
+        for block_number in unique_block_numbers:
+            if block_number in FB_ALL:
+                split_block_numbers += [block_number*1000 + 1, block_number*1000 + 2]
+            else:
+                split_block_numbers += [block_number]
+        unique_block_numbers = split_fb_blocks
 
     for ch in tqdm(CHANNELS+ICA_CHANNELS, str(subj_id)):
         # channel data if channels is ICA get projection
@@ -55,7 +64,14 @@ for subj_id in datasets_df['subj_id'].values[:]:
 
         for block_number in unique_block_numbers:
             # get block envelope as signal
-            signal = env[block_numbers == block_number]
+            if block_number < 1000:
+                signal = env[block_numbers == block_number]
+            else: # only if any block split
+                signal = env[block_numbers == block_number // 1000]
+                if block_number % 1000 == 1:
+                    signal = signal[:len(signal) // 2]
+                elif block_number % 1000 == 2:
+                    signal = signal[len(signal) // 2:]
 
             # mean magnitude in uV
             magnitude_j = signal.mean() * 1e6
@@ -84,9 +100,9 @@ for subj_id in datasets_df['subj_id'].values[:]:
                      'block_number': block_number, 'threshold_factor': threshold_factor}), ignore_index=True)
 
     print(stats_df.memory_usage().sum()/1024/1024)
-    stats_df.to_pickle('data/metrics_chs_ica{}.pkl'.format(subj_id))
+    stats_df.to_pickle('data/split_metrics_chs_ica{}.pkl'.format(subj_id))
 
 stats_df = pd.DataFrame(columns=columns)
 for subj_id in datasets_df['subj_id'].values[:]:
-    stats_df = stats_df.append(pd.read_pickle('data/metrics_chs_ica{}.pkl'.format(subj_id)))
-stats_df.to_pickle('data/metrics_chs_ica_all.pkl')
+    stats_df = stats_df.append(pd.read_pickle('data/split_metrics_chs_ica{}.pkl'.format(subj_id)))
+stats_df.to_pickle('data/split_metrics_chs_ica_all.pkl')

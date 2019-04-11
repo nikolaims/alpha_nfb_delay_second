@@ -53,7 +53,7 @@ for f, (fb_type, fb_type_df) in enumerate(all_stats_df.groupby('fb_type')):
             curve = ch_df['metric'].values
             curve[np.isinf(curve)] = np.nan
             curve = pd.Series(curve).fillna(method='bfill').values
-            slopes[f, s, c] = get_slope(curve, [np.max(curve), np.max(curve),  1/14], [np.mean(curve)/2, np.mean(curve)/2, 0])
+            slopes[f, s, c] = get_slope(curve, [np.max(curve), np.max(curve), 2/14], [np.mean(curve)/2, np.mean(curve)/2, 0])
             #slopes[f, s, c] = linregress(np.arange(15), curve).slope
 
 
@@ -65,3 +65,36 @@ for f in range(4):
     for s in range(10):
         plot_topomap(slopes[f, s], MONTAGE.get_pos(), mask=slopes[f, s]>pers, axes=axes[f, s], cmap='viridis', vmin=0, vmax=np.percentile(slopes, 90), contours=0)
     plot_topomap(np.mean(slopes[f], 0), MONTAGE.get_pos(), mask=np.mean(slopes[f], 0)>pers, axes=axes[f, -1], cmap='viridis', vmin=0, vmax=np.percentile(slopes, 90), contours=0)
+
+
+
+
+import itertools
+pairs = [('FB0', 'FBMock'),('FB250', 'FBMock'),('FB500', 'FBMock'),('FB0', 'FB250'),('FB250', 'FB500'),('FB0', 'FB500')]
+pairs_ind = [[0, 3], [1, 3], [2, 3], [0, 1], [1, 2], [0, 2]]
+combinations = list(itertools.combinations(np.arange(20), 10))[:11000]
+statistic = np.zeros((len(pairs_ind), len(combinations), 32))
+statistic0 = np.zeros((len(pairs_ind), 32))
+for n, combination in tqdm(enumerate(combinations), 'permutation'):
+    for j_pair, pair in enumerate(pairs):
+        slopes1 = slopes[pairs_ind[j_pair]].copy()
+        perm = np.concatenate([combination, np.arange(20)[~np.isin(np.arange(20), combination)]])
+        slopes_perm = np.concatenate([slopes1[0], slopes1[1]], axis=0)[perm]
+        st = np.median(slopes_perm[:10], 0) - np.median(slopes_perm[10:], 0)
+        statistic[j_pair, n] = st
+
+
+
+
+fig, axes = plt.subplots(1, len(pairs), figsize=(12, 4))
+for j_pair, pair in enumerate(pairs):
+    st = statistic[j_pair]
+    p_vals_h = np.sum(st > st[0], axis=0)/len(combinations)
+    mask_h = p_vals_h < 0.05
+    p_vals_l = np.sum(st < st[0], axis=0) / len(combinations)
+    mask_l = p_vals_l < 0.05
+    topo = p_vals_h*mask_h.astype(int) + mask_l.astype(int)*(1 - p_vals_l) + 0.5 *(~(mask_h | mask_l))
+
+    plot_topomap(topo, MONTAGE.get_pos(), vmin=-0.5, vmax=1.5, cmap='RdBu', mask=mask_h | mask_l, contours=0, show=False,
+                 mask_params=dict(marker='*', markerfacecolor="None", markeredgecolor='k', linewidth=0, markersize=10), axes=axes[j_pair])
+    axes[j_pair].set_title('{} > {}'.format(*pair))
