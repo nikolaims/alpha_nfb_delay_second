@@ -32,7 +32,7 @@ def band_hilbert(x, fs, band, N=None, axis=-1):
 
 # collect info
 data_path = '/home/kolai/Data/alpha_delay2'
-info = pd.read_csv('alpha_subject_2_full.csv')
+info = pd.read_csv('data/alpha_subject_2_full.csv')
 datasets = [d for d in info['dataset'].unique() if (d is not np.nan)
             and (info.query('dataset=="{}"'.format(d))['type'].values[0] in ['FB0', 'FBMock', 'FB250', 'FB500'])][:]
 
