@@ -83,7 +83,7 @@ def get_slope(y):
     rb[S:S+C] = 1
     rb[:S] = np.max(np.max(y, 2), 0)
     rb[S+C:S+C+S] = np.max(np.max(y, 2), 0)
-    rb[-1] = 2/(K-1)
+    rb[-1] = 3/(K-1)
     lin_const = LinearConstraint(const_matrix, lb, rb)
 
     x_0 = np.concatenate([np.random.normal(0,1)* np.min(np.min(y, 0), 1), np.random.uniform(0, 1, C), np.random.normal(0,1)* np.min(np.min(y, 0), 1), [0]])
@@ -94,12 +94,15 @@ def get_slope(y):
 import pandas as pd
 
 
+
+fb_type = 'FB0'
+
 all_stats_df = pd.read_pickle('data/split_metrics_chs_ica_all.pkl')
 all_stats_df = all_stats_df.loc[all_stats_df['block_number']>1000]
 all_stats_df = all_stats_df.loc[all_stats_df['channel'].isin(CHANNELS)]
 all_stats_df = all_stats_df.loc[all_stats_df['threshold_factor'].isin([2])]
 all_stats_df = all_stats_df.loc[all_stats_df['metric_type'].isin(['magnitude'])]
-all_stats_df = all_stats_df.loc[all_stats_df['fb_type'].isin(['FB0'])]
+all_stats_df = all_stats_df.loc[all_stats_df['fb_type'].isin([fb_type])]
 
 
 y = np.zeros((30, 10, 32))
@@ -113,11 +116,28 @@ for s, (subj_id, subj_df) in tqdm(enumerate(all_stats_df.groupby('subj_id'))):
 
 
 
-res = get_slope(y)#[:, np.random.randint(0, 10, 10)])
-print(res.fun, res.x[-1]*29*100)
+topos = []
+funs = []
+slopes = []
+
+for r in tqdm(range(1)):
+    res = get_slope(y[:, np.random.randint(0, 10, 10)])
+    print(res.fun, res.x[-1]*29*100)
+    topos.append(res.x[10:10+32])
+    funs.append(res.fun)
+    slopes.append(res.x[-1])
+
 
 plt.figure()
-plot_topomap(res.x[10:10+32], MONTAGE.get_pos())
+wean = lambda x, a: np.sum([topo*1/fun for topo, fun in zip(x, funs)], 0)/np.sum(1/np.array(funs), a)
+
+indx = [CHANNELS.index(chn) for c, chn in enumerate(all_stats_df['channel'].unique())]
+
+
+plot_topomap(wean(topos, 0), MONTAGE.get_pos()[indx], vmin=0, vmax=1)
+plt.title('{}\n{} +- {}'.format(fb_type, int(wean(slopes, 0)*29*100), int(wean((np.array(slopes) - wean(slopes, 0))**2, 0)**0.5*29*100)))
+plt.tight_layout()
+
 
 
 fig, axes = plt.subplots(11, sharey=True, sharex=True)
