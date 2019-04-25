@@ -13,7 +13,7 @@ from tqdm import tqdm
 import pandas as pd
 
 
-all_stats_df = pd.read_pickle('data/2split_metrics_chs_ica_all.pkl')
+all_stats_df = pd.read_pickle('data/multichannel_metrics_split_local.pkl')
 all_stats_df = all_stats_df.loc[all_stats_df['block_number']>1000]
 all_stats_df = all_stats_df.loc[all_stats_df['channel'].isin(CHANNELS)]
 all_stats_df = all_stats_df.loc[all_stats_df['threshold_factor'].isin([2])]
@@ -94,14 +94,14 @@ for m, metric_type in enumerate(['magnitude', 'n_spindles', 'duration', 'amplitu
             #     return stat
 
             def get_stat(y1, y2, fun=np.array):
-                #stat = linregress(x, fun(y1.T.flatten())).slope - linregress(x, fun(y2.T.flatten())).slope
+                stat = linregress(x, fun(y1.T.flatten())).slope - linregress(x, fun(y2.T.flatten())).slope
                 #stat = linregress(np.arange(30), (np.mean(y1, 0)-np.mean(y2, 0))).slope
-                stat = np.sum((np.mean(y1, 0) - np.mean(y2, 0)))
+                #stat = np.sum((np.mean(y1, 0) - np.mean(y2, 0)))
                 return stat
 
 
 
-            n_perm = 2000
+            n_perm = 1000
             stats = np.zeros(n_perm)
             for k in range(n_perm):
                 # y1_ind, y2_ind = np.split(np.random.permutation(np.arange(10).repeat(2)), 2)
@@ -120,7 +120,7 @@ fig, axes = plt.subplots(4, 4)
 for m, metric_type in enumerate(['magnitude', 'n_spindles', 'duration', 'amplitude']):
     for f, fb1_type in tqdm(enumerate(['FB0', 'FB250', 'FB500', 'FBMock']), metric_type):
 
-        fdr_mask = fdr_correction(ch_p_vals[m, f], 0.1)[0]
+        fdr_mask = fdr_correction(ch_p_vals[m, f], 0.05)[0]
         im = plot_topomap(np.log10(ch_p_vals[m, f]+0.0001), MONTAGE.get_pos(), mask=fdr_mask, axes=axes[m, f], show=False, vmin=-2, vmax=0, cmap='inferno_r', contours=[np.log10(0.05)])
         axes[0, f].set_title(fb1_type)
 

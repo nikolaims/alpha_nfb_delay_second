@@ -77,7 +77,7 @@ for subj_id in datasets_df['subj_id'].values[:]:
 
         if not GLOBAL_THRESHOLD:
             # first FB median
-            median = np.median(env[block_numbers == FB_ALL])
+            median = np.median(env[np.isin(block_numbers, FB_ALL)])
 
         for block_number in unique_block_numbers:
             # get block envelope as signal
