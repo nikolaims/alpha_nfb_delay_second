@@ -13,7 +13,7 @@ N_SAMPLES_POST = 2*FS
 N_SAMPLES_NORM = FS
 
 
-probes_df = pd.read_pickle('envelopes.pkl')
+probes_df = pd.read_pickle('old/envelopes.pkl')
 datasets = probes_df['dataset'].unique()[:]
 
 
@@ -44,7 +44,7 @@ for j_dataset, dataset in enumerate(datasets[:]):
             spindles.append(spindle)
 
         spindle = np.median(spindles, 0)
-        spindle = (spindle )#/median
+        spindle = (spindle )/ np.median(spindle[:FS//2])
 
         #spindle /= spindle.max()
         stats_df = stats_df.append(pd.DataFrame(
@@ -58,3 +58,5 @@ for j_dataset, dataset in enumerate(datasets[:]):
 g = sns.relplot('time', 'spindle', data=stats_df, hue='fb_type', kind='line', ci=None, estimator=np.mean, hue_order=['FB0', 'FB250', 'FB500', 'FBMock'], col= 'threshold_factor')
 
 [ax.axvline(0, color='k') for ax in g.axes.flatten()]
+
+plt.savefig('sp_curves.png', dpi=200)
