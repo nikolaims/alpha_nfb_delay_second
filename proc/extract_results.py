@@ -15,8 +15,13 @@ def band_hilbert(x, fs, band, N=None, axis=-1):
 
 SPLIT_FB_BLOCKS = True
 GLOBAL_THRESHOLD = False
-threshold_factors = [2] #np.arange(1, 3.1, 0.125)
-res_df_name = 'multichannel_multiband_metrics_{split}_{threshold_type}'.format(threshold_type='global' if GLOBAL_THRESHOLD else 'local', split='split' if SPLIT_FB_BLOCKS else '')
+USE_ICA = False
+P4_ONLY = True
+channels = (['P4'] if P4_ONLY else CHANNELS) + (ICA_CHANNELS if USE_ICA else [])
+threshold_factors = np.arange(1, 3.1, 0.125)
+bands =dict(zip(['alpha'], [1]))
+res_df_name = 'channels{}_bands{}_splited{}_thresholds{}_globthr{}'.format(len(channels), len(bands), SPLIT_FB_BLOCKS, len(threshold_factors), GLOBAL_THRESHOLD)
+print(res_df_name)
 
 # load pre filtered data
 probes_df = pd.read_pickle('data/eeg_allsubjs_eyefree_1_45hz_down250hz.pkl')
@@ -37,7 +42,7 @@ for subj_id in datasets_df['subj_id'].values[:]:
     fb_type = datasets_df.query('subj_id=={}'.format(subj_id))['fb_type'].values[0]
 
     # subj band
-    for band_name, band_factor in zip(['alpha', 'beta', 'theta'], [1, 2, 0.5]):
+    for band_name, band_factor in bands.items():
         band = np.array(datasets_df.query('subj_id=={}'.format(subj_id))['band'].values[0]) * band_factor
 
         # subj ica
@@ -57,7 +62,7 @@ for subj_id in datasets_df['subj_id'].values[:]:
 
         if GLOBAL_THRESHOLD:
             envs = []
-            for ch in tqdm(CHANNELS+ICA_CHANNELS, str(subj_id)):
+            for ch in tqdm(channels, str(subj_id)):
                 if 'ICA' in ch: continue
                 # channel data if channels is ICA get projection
                 ch_data = data[ch].values
@@ -69,7 +74,7 @@ for subj_id in datasets_df['subj_id'].values[:]:
                 envs.append(env)
             median = np.median(np.concatenate(envs))
 
-        for ch in tqdm(CHANNELS+ICA_CHANNELS, str(subj_id) + band_name):
+        for ch in tqdm(channels, str(subj_id) + band_name):
             # channel data if channels is ICA get projection
             ch_data = data[ch].values if 'ICA' not in ch else data[CHANNELS].values.dot(ica.filters[:, int(ch[3:])-1])
 
