@@ -16,8 +16,8 @@ def ranksums(x, y):
     s = np.sum(x, axis=0)
     return s
 
-stats_df = pd.read_pickle('data/metrics_chs_ica_all.pkl').query('channel=="P4"')
-stats_df = stats_df.loc[stats_df['block_number'].isin(FB_ALL)]
+stats_df = pd.read_pickle('data/channels1_bands1_splitedTrue_thresholds17_globthrFalse.pkl').query('channel=="P4" & band=="alpha"')
+stats_df = stats_df.loc[stats_df['block_number']> 1000]
 #stats_df.fillna(0)
 
 
@@ -27,7 +27,9 @@ scores_df = pd.DataFrame(columns=factor_names + ['score'])
 
 for factors_values, group in stats_df.groupby(factor_names):
     metric = group['metric'].values
-    score = (metric[8:].mean() - metric[1:8].mean()) / metric[1:8].mean()
+    curve = metric
+    #curve = pd.Series(metric).rolling(3, center=True).mean().fillna(method='ffill').fillna(method='bfill')
+    score = np.mean(curve[15:])/np.mean(curve[:15])
     #score = metric[-1]/metric[2]
     scores_df = scores_df.append(dict(zip(factor_names + ['score'], list(factors_values)+[score])), ignore_index=True)
 
@@ -46,8 +48,8 @@ for factors_values, group in scores_df.groupby(factor_names):
     for pvalue_type in ['FBMock', 'FB500', 'FB250', 'FB0']:
         if factors_values[0] == pvalue_type: continue
         mock = scores_df.query('fb_type=="{}" & metric_type=="{}" & threshold_factor=={}'.format(pvalue_type, *factors_values[1:]))
-        p_value_mock = stats.ttest_ind(group['score'].values, mock['score'].values).statistic
-        pvalue = stats.ttest_ind(group['score'].values, mock['score'].values).pvalue
+        p_value_mock = ranksums(group['score'].values, mock['score'].values)
+        pvalue = stats.ranksums(group['score'].values, mock['score'].values).pvalue
         print('*' if stats.shapiro(group['score'].values)[1]<0.05 else '-', factors_values)
 
         #p_value_0 = stats.ranksums(group['score'].values, 0)[0]
@@ -59,11 +61,11 @@ for factors_values, group in scores_df.groupby(factor_names):
 #sns.set(rc={'figure.figsize':(2,2)})
 #sns.set(font_scale=2)
 g = sns.relplot('threshold_factor', 'runksum', 'fb_type', col='metric_type', data=p_values_df, kind='line',
-                row='comparison', col_order=['magnitude', 'n_spindles', 'duration', 'amplitude'], row_order=pvalue_types, height=2.5)
+                row='comparison', col_order=['magnitude', 'n_spindles', 'duration', 'amplitude'], row_order=pvalue_types, height=2.5, palette=['#3CB4E8', '#438BA8', '#002A3B', '#FE4A49'])
 #g.axes[0][0].semilogy()
 #g.fig.set_size_inches(10,10)
 [[ax.axhline(p, color='k', linestyle='--') for ax in g.axes.flatten()] for p in [-1.65, 1.65]]
-for color, axes in zip(sns.color_palette(), g.axes):
+for color, axes in zip(['#3CB4E8', '#438BA8', '#002A3B', '#FE4A49'], g.axes):
    [ax.axhspan(-1.65, 1.65, color=color, alpha=0.2) for ax in axes.flatten()]
 #plt.tight_layout()
 
@@ -90,7 +92,7 @@ from mne.stats import fdr_correction
 th_factors = stats_df['threshold_factor'].unique()
 for comparison, axes in zip(pvalue_types, g.axes):
     for metric_type, ax in zip(['magnitude', 'n_spindles', 'duration', 'amplitude'], axes):
-        for fb_type, color in zip(pvalue_types, sns.color_palette()):
+        for fb_type, color in zip(pvalue_types, ['#3CB4E8', '#438BA8', '#002A3B', '#FE4A49']):
             pval = p_values_df.query('comparison=="{}" & fb_type=="{}" & metric_type=="{}"'.format(comparison, fb_type, metric_type))['pvalue'].values
             T = p_values_df.query(
                 'comparison=="{}" & fb_type=="{}" & metric_type=="{}"'.format(comparison, fb_type, metric_type))[
@@ -98,3 +100,30 @@ for comparison, axes in zip(pvalue_types, g.axes):
             reject_fdr, pval_fdr = fdr_correction(pval, alpha=0.10, method='indep')
             if len(T[reject_fdr]) > 0:
                 ax.plot(th_factors[reject_fdr], T[reject_fdr], '*', color=color)
+
+cm = dict(zip(['FB0', 'FB250', 'FB500', 'FBMock'], ['#3CB4E8', '#438BA8', '#002A3B', '#FE4A49']))
+fig, axes = plt.subplots(1, 3, sharex='all', sharey='all', figsize=(7,4))
+plt.subplots_adjust(wspace=0.1)
+for j_metric_name, metric_name in enumerate(['n_spindles',  'amplitude', 'duration']):
+    for fb_type in ['FB0', 'FB250', 'FB500'][::-1]:
+        axes[j_metric_name].plot(p_values_df.query('fb_type=="{}" & metric_type=="{}" & comparison=="FBMock"'.format(fb_type, metric_name))['runksum'], th_factors, color=cm[fb_type], alpha=0.9)
+        pval = p_values_df.query(
+            'comparison=="FBMock" & fb_type=="{}" & metric_type=="{}"'.format(fb_type, metric_name))[
+            'pvalue'].values
+        T = p_values_df.query(
+            'comparison=="FBMock" & fb_type=="{}" & metric_type=="{}"'.format(fb_type, metric_name))[
+            'runksum'].values
+        reject_fdr, pval_fdr = fdr_correction(pval, alpha=0.10, method='indep')
+        if len(T[reject_fdr]) > 0:
+            axes[j_metric_name].plot(T[reject_fdr], th_factors[reject_fdr], '*', color=cm[fb_type], markersize=7, alpha=0.9)
+
+[ax.axvline(105, color=cm['FBMock'], zorder=-100) for ax in axes.flatten()]
+[ax.axvline(128, color=cm['FBMock'], linestyle='--', zorder=-100) for ax in axes.flatten()]
+[ax.set_xlabel('Rank-Sum') for ax in axes.flatten()]
+[ax.set_title(n) for ax, n in zip(axes.flatten(), ['n_spindles',  'amplitude', 'duration'])]
+axes[0].set_ylabel('Threshold factor $\delta$')
+axes[0].set_yticks([1, 1.5, 2, 2.5, 3])
+[ax.spines['right'].set_visible(False)for ax in axes.flatten()]
+[ax.spines['top'].set_visible(False)for ax in axes.flatten()]
+
+plt.savefig('mock_vs_rest_ths_NAT.png', dpi=300)
