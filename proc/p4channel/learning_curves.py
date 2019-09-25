@@ -46,7 +46,13 @@ g = sns.relplot('block_number', 'metric', 'fb_type', data=scores_df, row='metric
 g.axes[-1,-1].set_xticks(np.arange(1, 15, 3))
 
 # ['#084C61','#0099D8',   '#84BCDA', '#FE4A49']
-g = sns.relplot('block_number', 'metric', 'fb_type', col='fb_type', kind='line', data=scores_df.query('metric_type=="magnitude"'), col_order=['FB0', 'FB250', 'FB500', 'FBMock'], hue_order=['FB0', 'FB250', 'FB500', 'FBMock'], palette=['#3CB4E8', '#438BA8', '#002A3B', '#FE4A49'], aspect=0.8, height=3)
+sns.set_style("whitegrid")
+g = sns.relplot('block_number', 'metric', 'fb_type', col='fb_type', kind='line',
+                data=scores_df.query('metric_type=="magnitude"'), col_order=['FB0', 'FB250', 'FB500', 'FBMock'],
+                hue_order=['FB0', 'FB250', 'FB500', 'FBMock'], palette=['#3CB4E8', '#438BA8', '#002A3B', '#FE4A49'],
+                aspect=0.8, height=3, marker='.', markeredgecolor='none', markersize=10)
 g.axes[0, 0].set_ylabel('Magnitude, $\mu V$')
 [ax.set_title(s) for ax, s in zip(g.axes.flatten(), ['FB0', 'FB250', 'FB500', 'FBMock'])]
 [ax.set_xlabel('Block number') for ax in g.axes.flatten()]
+
+plt.savefig('curves_p4_grid.png', dpi=200)
