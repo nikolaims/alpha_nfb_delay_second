@@ -117,7 +117,7 @@ for j_metric_name, metric_name in enumerate(['n_spindles',  'amplitude', 'durati
         if len(T[reject_fdr]) > 0:
             axes[j_metric_name].plot(T[reject_fdr], th_factors[reject_fdr], '*', color=cm[fb_type], markersize=7, alpha=0.9)
 
-[ax.axvline(105, color=cm['FBMock'], zorder=-100) for ax in axes.flatten()]
+# [ax.axvline(105, color=cm['FBMock'], zorder=-100) for ax in axes.flatten()]
 [ax.axvline(128, color=cm['FBMock'], linestyle='--', zorder=-100) for ax in axes.flatten()]
 [ax.set_xlabel('Rank-Sum') for ax in axes.flatten()]
 [ax.set_title(n) for ax, n in zip(axes.flatten(), ['n_spindles',  'amplitude', 'duration'])]
@@ -126,4 +126,14 @@ axes[0].set_yticks([1, 1.5, 2, 2.5, 3])
 [ax.spines['right'].set_visible(False)for ax in axes.flatten()]
 [ax.spines['top'].set_visible(False)for ax in axes.flatten()]
 
-plt.savefig('mock_vs_rest_ths_NAT.png', dpi=300)
+plt.savefig('mock_vs_rest_ths_red_span_with_lines.png', dpi=300)
+
+
+
+plt.figure()
+sns.boxplot('fb_type', 'score', data=scores_df.query('metric_type=="magnitude" & threshold_factor==2').sort_values('fb_type'),
+            palette=['#6AC3E8', '#438BA8', '#005375', '#FE4A49'], hue_order=['FB0', 'FB250', 'FB500', 'FBMock'])
+sns.swarmplot('fb_type', 'score', data=scores_df.query('metric_type=="magnitude" & threshold_factor==2').sort_values('fb_type'),
+            palette=['#222222']*4, hue_order=['FB0', 'FB250', 'FB500', 'FBMock'])
+plt.ylim(0.8, 1.5)
+plt.savefig('magnitude_indexes.png', dpi=300)
