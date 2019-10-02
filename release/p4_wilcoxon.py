@@ -15,8 +15,8 @@ def ranksums(x, y):
     s = np.sum(x, axis=0)
     return s, p_value
 
-
-stats_df = pd.read_pickle('release/data/{}.pkl'.format('channels1_bands1_splitedTrue_thresholds17'))
+stats_file = 'channels1_bands1_splitedTrue_median_thresholds17.pkl'
+stats_df = pd.read_pickle('release/data/{}'.format(stats_file))
 stats_df = stats_df.loc[stats_df['block_number']> 1000]
 unique_blocks = list(stats_df['block_number'].unique())
 stats_df['k'] = stats_df['block_number'].apply(lambda x: unique_blocks.index(x))
@@ -30,18 +30,18 @@ t_stat_df = pd.DataFrame(columns=['metric_type', 'threshold_factor', 'Contrast',
 for threshold_factor in stats_df.threshold_factor.unique():
     for metric_type in ['magnitude', 'n_spindles', 'amplitude', 'duration']:
         data = stats_df.query('metric_type=="{}" & threshold_factor=={}'.format(metric_type, threshold_factor)).copy()
-        data = data.replace([np.inf, -np.inf], np.nan)
-        data.loc[:, 'metric'] = data['metric'].fillna(data['metric'].min()).values
+        if not (np.all(np.isfinite(data['metric'])) and data['metric'].notna().all()):
+            print(threshold_factor, metric_type)
 
         for contrast in contrasts:
             fb1_type, fb2_type = contrast.split(' - ')
             fb1_df = data.query('fb_type=="{}"'.format(fb1_type))
             fb2_df = data.query('fb_type=="{}"'.format(fb2_type))
-            fb1_scores = fb1_df.query('k<15').groupby('subj_id').mean()['metric'] / fb1_df.query('k>=15').groupby(
+            fb1_scores = fb1_df.query('k>=15').groupby('subj_id').mean()['metric'] / fb1_df.query('k<15').groupby(
                 'subj_id').mean()['metric']
-            fb2_scores = fb2_df.query('k<15').groupby('subj_id').mean()['metric'] / fb2_df.query('k>=15').groupby(
+            fb2_scores = fb2_df.query('k>=15').groupby('subj_id').mean()['metric'] / fb2_df.query('k<15').groupby(
                 'subj_id').mean()['metric']
-            stat, p_value = ranksums(fb2_scores.values, fb1_scores.values)
+            stat, p_value = ranksums(fb1_scores.values, fb2_scores.values)
             t_stat_df = t_stat_df.append({'metric_type': metric_type, 'threshold_factor': threshold_factor,
                                           'Contrast': contrast, 'Stat': stat, 'P-value': p_value}, ignore_index=True)
 
