@@ -9,6 +9,7 @@ SPLIT_FB_BLOCKS = True
 P4_ONLY = True
 channels = (['P4'] if P4_ONLY else CHANNELS)
 threshold_factors = np.arange(1, 3.1, 0.125)
+# threshold_factors = np.arange(50, 100, 2.5)
 bands = dict(zip(['alpha'], [1]))
 res_df_name = 'channels{}_bands{}_splited{}_median_thresholds{}'.format(len(channels), len(bands), SPLIT_FB_BLOCKS, len(threshold_factors))
 print(res_df_name)
@@ -74,6 +75,7 @@ for subj_id in datasets_df['subj_id'].values[:]:
                 # iterate thresholds factors
                 for threshold_factor in threshold_factors:
                     threshold = threshold_factor * median
+                    # threshold = np.percentile(env[np.isin(block_numbers, FB_ALL)], threshold_factor)
 
                     # get spindles mask
                     spindles_mask = signal > threshold
@@ -89,8 +91,8 @@ for subj_id in datasets_df['subj_id'].values[:]:
                         amplitude_j = np.mean(signal[spindles_mask]) * 1e6
                     else:
                         n_spindles_j = 1
-                        duration_j = 0.001
-                        amplitude_j = threshold
+                        duration_j = 0.005
+                        amplitude_j = threshold * 1e6
 
                     # save metrics above for channel
                     stats_df = stats_df.append(pd.DataFrame(

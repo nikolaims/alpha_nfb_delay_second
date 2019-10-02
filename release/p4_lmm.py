@@ -5,7 +5,7 @@ import numpy as np
 from scipy import stats
 
 
-stats_file = 'channels1_bands1_splitedTrue_median_thresholds17.pkl'
+stats_file = 'channels1_bands1_splitedTrue_median_thresholds_pers20.pkl'
 stats_df = pd.read_pickle('release/data/{}'.format(stats_file))
 stats_df = stats_df.loc[stats_df['block_number']> 1000]
 unique_blocks = list(stats_df['block_number'].unique())
