@@ -10,8 +10,10 @@ datasets_df = pd.read_pickle('release/data/info_allsubjs.pkl')
 
 probes_df.columns.duplicated()
 probes_df.to_pickle('release/data/eeg_allsubjs_eyefree_1_45hz_down250hz.pkl')
-for k in range(40):
-    plt.plot(*sg.welch(probes_df.query('subj_id=={}'.format(k))['P4'].values, 250, nperseg=1000))
 
-plt.plot(probes_df.query('subj_id==2')['P4'].values)
+k = 0
+
+plt.figure(figsize=(30, 4))
+plt.plot(probes_df.query('subj_id=={}'.format(k))['P4'].values)
+k += 1
 

@@ -15,6 +15,7 @@ def ranksums(x, y):
     s = np.sum(x, axis=0)
     return s, p_value
 
+LOG = False
 stats_file = 'channels1_bands1_splitedTrue_median_thresholds_pers20.pkl'
 stats_df = pd.read_pickle('release/data/{}'.format(stats_file))
 stats_df = stats_df.loc[stats_df['block_number']> 1000]
@@ -37,10 +38,14 @@ for threshold_factor in stats_df.threshold_factor.unique():
             fb1_type, fb2_type = contrast.split(' - ')
             fb1_df = data.query('fb_type=="{}"'.format(fb1_type))
             fb2_df = data.query('fb_type=="{}"'.format(fb2_type))
-            fb1_scores = fb1_df.query('k>=15').groupby('subj_id').mean()['metric'] / fb1_df.query('k<15').groupby(
-                'subj_id').mean()['metric']
-            fb2_scores = fb2_df.query('k>=15').groupby('subj_id').mean()['metric'] / fb2_df.query('k<15').groupby(
-                'subj_id').mean()['metric']
+            if LOG:
+                fun = (lambda x: np.log(x) )if metric_type in ['magnitude', 'amplitude'] else (lambda x: x)
+            else:
+                fun = lambda x: x
+            fb1_scores = fun(fb1_df.query('k>=15').groupby('subj_id').mean()['metric']) / fun(fb1_df.query('k<15').groupby(
+                'subj_id').mean()['metric'])
+            fb2_scores = fun(fb2_df.query('k>=15').groupby('subj_id').mean()['metric']) / fun(fb2_df.query('k<15').groupby(
+                'subj_id').mean()['metric'])
             stat, p_value = ranksums(fb1_scores.values, fb2_scores.values)
             t_stat_df = t_stat_df.append({'metric_type': metric_type, 'threshold_factor': threshold_factor,
                                           'Contrast': contrast, 'Stat': stat, 'P-value': p_value}, ignore_index=True)
@@ -52,9 +57,9 @@ import pylab as plt
 
 cm = dict(zip(['FB0', 'FB250', 'FB500', 'FBMock'], ['#3CB4E8', '#438BA8', '#002A3B', '#FE4A49']))
 
-fig, axes = plt.subplots(3, 3, sharey='all', sharex='all', figsize=(6, 7))
+fig, axes = plt.subplots(3, 4, sharey='all', sharex='all', figsize=(6, 7))
 plt.subplots_adjust(wspace=0, hspace=0)
-for j_metric_type, metric_type in enumerate(['n_spindles', 'amplitude', 'duration']):
+for j_metric_type, metric_type in enumerate(['magnitude', 'n_spindles', 'amplitude', 'duration']):
     axes[0, j_metric_type].set_title(metric_type)
     for contrast in contrasts:
         fb1_type, fb2_type = contrast.split(' - ')
