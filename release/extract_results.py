@@ -7,11 +7,17 @@ from release.utils import band_hilbert
 
 SPLIT_FB_BLOCKS = True
 P4_ONLY = True
+USE_PERCENTILES = False
 channels = (['P4'] if P4_ONLY else CHANNELS)
-threshold_factors = np.arange(1, 3.1, 0.125)
-# threshold_factors = np.arange(50, 100, 2.5)
+if USE_PERCENTILES:
+    threshold_factors = np.arange(50, 100, 2.5)
+else:
+    threshold_factors = np.arange(1, 3.5, 0.125)
+#
 bands = dict(zip(['alpha'], [1]))
-res_df_name = 'channels{}_bands{}_splited{}_median_thresholds{}'.format(len(channels), len(bands), SPLIT_FB_BLOCKS, len(threshold_factors))
+res_df_name = 'channels{}_bands{}_splited{}_{}_threshs{}'.format(len(channels), len(bands), SPLIT_FB_BLOCKS,
+                                                                    'perc' if USE_PERCENTILES else 'median',
+                                                                    len(threshold_factors))
 print(res_df_name)
 
 # load pre filtered data
@@ -74,8 +80,11 @@ for subj_id in datasets_df['subj_id'].values[:]:
 
                 # iterate thresholds factors
                 for threshold_factor in threshold_factors:
-                    threshold = threshold_factor * median
-                    # threshold = np.percentile(env[np.isin(block_numbers, FB_ALL)], threshold_factor)
+                    if USE_PERCENTILES:
+                        threshold = np.percentile(env[np.isin(block_numbers, FB_ALL)], threshold_factor)
+                    else:
+                        threshold = threshold_factor * median
+                    #
 
                     # get spindles mask
                     spindles_mask = signal > threshold
