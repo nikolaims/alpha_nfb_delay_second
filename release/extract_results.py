@@ -15,16 +15,16 @@ else:
     threshold_factors = np.arange(1, 3.5, 0.125)
 #
 bands = dict(zip(['alpha'], [1]))
-res_df_name = 'channels{}_bands{}_splited{}_{}_threshs{}'.format(len(channels), len(bands), SPLIT_FB_BLOCKS,
+res_df_name = '5groups_channels{}_bands{}_splited{}_{}_threshs{}'.format(len(channels), len(bands), SPLIT_FB_BLOCKS,
                                                                     'perc' if USE_PERCENTILES else 'median',
                                                                     len(threshold_factors))
 print(res_df_name)
 
 # load pre filtered data
-probes_df = pd.read_pickle('release/data/eeg_allsubjs_eyefree_1_45hz_down250hz.pkl')
+probes_df = pd.read_pickle('release/data/eeg_5groups_eyefree_1_45hz_down250hz.pkl')
 
 # load datasets info
-datasets_df = pd.read_pickle('release/data/info_allsubjs.pkl')
+datasets_df = pd.read_pickle('release/data/info_5groups.pkl')
 
 # prepare data frame to save metrics
 columns=['subj_id', 'channel', 'fb_type', 'metric', 'metric_type', 'block_number','threshold_factor', 'band']

@@ -43,3 +43,8 @@ subj,dataset,type,,data,name,age,"sex(f-1,m-2)",notes,understanding(1-10),contro
 45,alpha2-delay-subj-45_02-22_13-56-39,FB0,,22.02,Виктория Земляк,22,1,,3,5,,,,,1,,,,
 46,alpha2-delay-subj-46_02-22_15-31-11,FBMock,,22.02,Олькова Елизавета,23,1,,7,8,,,,,,1,,,
 47,alpha2-delay-subj-47_02-22_17-41-18,FBMock,,22.02,Михеев Владимир,,2,,,,,,,,,,,,
+48,alpha2-delay-FBLow-subj-1_02-19_16-12-34,FBLow,,,,,,,,,,,,,,,,,
+49,alpha2-delay-FBLow-subj-2_02-19_18-27-51,FBLow,,,,,,,,,,,,,,,,,
+50,alpha2-delay-FBLow-subj-4_02-21_16-14-31,FBLow,,,,,,,,,,,,,,,,,
+50,alpha2-delay-FBLow-subj-5_02-25_15-52-56,FBLow,,,,,,,,,,,,,,,,,
+
