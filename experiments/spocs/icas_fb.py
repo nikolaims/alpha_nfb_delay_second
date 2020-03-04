@@ -15,8 +15,8 @@ eeg_df = pd.read_pickle(eeg_path)
 info_df = pd.read_pickle(info_path)
 
 
-topos = []
-corrss = []
+topographies = []
+filters = []
 for subj_id in range(1):
     print(subj_id)
     eeg_df_subj = eeg_df[eeg_df['subj_id']==subj_id]
@@ -44,7 +44,7 @@ for subj_id in range(1):
     # comp_pow = get_pow(fb_data.dot(ica.filters))[5:]
     # corrs = [np.corrcoef(comp_pow[:, k], y_pow)[1, 0] for k in range(32)]
     corrs = np.array([np.corrcoef(fb_data.dot(ica.filters[:, k]), y)[1, 0] for k in range(32)])
-    corrs_argsort = np.argsort(np.abs(corrs))[::-1]
+    corrs_argsort = np.argsort(np.abs(ica.topographies[CHANNELS.index('P4')]))[::-1]
     fig, axes = plt.subplots(1, 10)
     for k in range(10):
         ax = axes[k]
@@ -53,3 +53,21 @@ for subj_id in range(1):
     topos.append(ica.topographies[:, corrs_argsort])
     corrss.append(corrs[corrs_argsort])
 
+
+plt.figure()
+
+fb_data = eeg_df_subj.loc[:, CHANNELS].values
+fb_data = sg.lfilter(filter_b, [1, 0], fb_data, 0)[filter_n_taps // 2:]
+y = fb_data[:, CHANNELS.index('P4')]
+
+
+p4_coefs = ica.topographies[CHANNELS.index('P4')]
+argsort = np.argsort(np.abs(p4_coefs))[::-1]
+filters = ica.filters[:, argsort]
+comps = fb_data.dot(filters)*p4_coefs[argsort][None, :]
+
+
+
+get_pow = lambda x: sg.lfilter(np.arange(FS*20)/FS/20, [1, 0], np.abs(x), axis=0)[FS*20::FS*10]
+plt.plot(get_pow(y), '--')
+plt.plot(get_pow(comps[:, 0:5]))
