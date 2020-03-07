@@ -21,7 +21,7 @@ GFP_THRESHOLD = 100e-6
 data_path = '/home/kolai/Data/alpha_delay2'
 info = pd.read_csv('release/data/alpha_subject_2_full.csv')
 datasets = [d for d in info['dataset'].unique() if (d is not np.nan)
-            and (info.query('dataset=="{}"'.format(d))['type'].values[0] in ['FB0', 'FBMock', 'FB250', 'FB500'])][:]
+            and (info.query('dataset=="{}"'.format(d))['type'].values[0] in ['FB0', 'FBMock', 'FB250', 'FB500', 'FBLow'])][:]
 
 
 
@@ -44,10 +44,11 @@ for subj_id, dataset in enumerate(datasets[:]):
     df['online_envelope'] = df['signal_Alpha0']
 
     # get FB type
-    fb_type = df.query('block_number==6')['block_name'].values[0]
+    # fb_type = df.query('block_number==6')['block_name'].values[0]
+    fb_type = info.loc[info['dataset']==dataset, 'type'].values[0]
 
     # rename FB blocks to "FB"
-    df['block_name'] = df['block_name'].apply(lambda x: 'FB' if x == fb_type in x else x)
+    df['block_name'] = df['block_name'].apply(lambda x: 'FB' if 'FB' in x else x)
 
     # drop pauses
     df = df.loc[df['block_name'].isin(['Baseline0', 'Close', 'Baseline', 'FB'])]
@@ -90,5 +91,5 @@ for subj_id, dataset in enumerate(datasets[:]):
 
 probes_df[['subj_id', 'block_number']] = probes_df[['subj_id', 'block_number']].astype('int8')
 probes_df = probes_df.loc[:,~probes_df.columns.duplicated()]
-probes_df.to_pickle('release/data/eeg_allsubjs_eyefree_1_45hz_down250hz.pkl')
+probes_df.to_pickle('release/data/FBLow_eeg_allsubjs_eyefree_1_45hz_down250hz.pkl')
 datasets_df.to_pickle('release/data/info_allsubjs.pkl')

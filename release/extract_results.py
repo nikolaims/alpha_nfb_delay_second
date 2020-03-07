@@ -15,13 +15,13 @@ else:
     threshold_factors = np.arange(1, 3.5, 0.125)
 #
 bands = dict(zip(['alpha'], [1]))
-res_df_name = 'channels{}_bands{}_splited{}_{}_threshs{}'.format(len(channels), len(bands), SPLIT_FB_BLOCKS,
+res_df_name = 'FBLow_channels{}_bands{}_splited{}_{}_threshs{}'.format(len(channels), len(bands), SPLIT_FB_BLOCKS,
                                                                     'perc' if USE_PERCENTILES else 'median',
                                                                     len(threshold_factors))
 print(res_df_name)
 
 # load pre filtered data
-probes_df = pd.read_pickle('release/data/eeg_allsubjs_eyefree_1_45hz_down250hz.pkl')
+probes_df = pd.read_pickle('release/data/P4FBLow_eeg_allsubjs_eyefree_1_45hz_down250hz.pkl')
 
 # load datasets info
 datasets_df = pd.read_pickle('release/data/info_allsubjs.pkl')
@@ -62,7 +62,7 @@ for subj_id in datasets_df['subj_id'].values[:]:
 
             # compute envelope
             env = np.abs(band_hilbert(ch_data, FS, band))
-            median = np.median(env[np.isin(block_numbers, FB_ALL)])
+            median = np.median(env[np.isin(block_numbers, FB_ALL)]) #TODO: what blocks we need to use to compute median
 
             for block_number in unique_block_numbers:
                 # get block envelope as signal
@@ -99,7 +99,7 @@ for subj_id in datasets_df['subj_id'].values[:]:
                         # mean spindle amplitue
                         amplitude_j = np.mean(signal[spindles_mask]) * 1e6
                     else:
-                        n_spindles_j = 1
+                        n_spindles_j = 1 # TODO replace by NaN
                         duration_j = 0.005
                         amplitude_j = threshold * 1e6
 
@@ -113,7 +113,7 @@ for subj_id in datasets_df['subj_id'].values[:]:
 
     stats_df.to_pickle('release/data/temp/{}_{}.pkl'.format(res_df_name, subj_id))
 
-stats_df = pd.DataFrame(columns=columns)
-for subj_id in datasets_df['subj_id'].values[:]:
-    stats_df = stats_df.append(pd.read_pickle('release/data/temp/{}_{}.pkl'.format(res_df_name, subj_id)))
-stats_df.to_pickle('release/data/{}.pkl'.format(res_df_name))
+# stats_df = pd.DataFrame(columns=columns)
+# for subj_id in datasets_df['subj_id'].values[:]:
+#     stats_df = stats_df.append(pd.read_pickle('release/data/temp/{}_{}.pkl'.format(res_df_name, subj_id)))
+# stats_df.to_pickle('release/data/{}.pkl'.format(res_df_name))
