@@ -71,7 +71,7 @@ info_path = 'release/data/info_allsubjs.pkl'
 eeg_df = pd.read_pickle(eeg_path)
 info_df = pd.read_pickle(info_path)
 
-LINEAR_TREND = False
+LINEAR_TREND = 1
 DEL_P4 = True
 pos = Montage(CHANNELS).get_pos() if not DEL_P4 else Montage([ch for ch in CHANNELS if ch!='P4']).get_pos()
 
@@ -89,8 +89,8 @@ for subj_id in range(40):
     y = x[:, CHANNELS.index('P4')]
     if DEL_P4: x = x[:, np.array(CHANNELS)!='P4']
 
-    n_times = FS * 30
-    n_step = FS * 1
+    n_times = FS * 60
+    n_step = FS * 10
     n_epochs = (len(x) - n_times) // n_step
     n_channels = len(CHANNELS) - int(DEL_P4)
     spoc_X = np.zeros((n_epochs, n_channels, n_times))
@@ -121,7 +121,7 @@ for subj_id in range(40):
         gs = fig3.add_gridspec(3, n_comp)
         main_ax = fig3.add_subplot(gs[:2, :])
         for k in range(n_comp):
-            main_ax.plot(comps[::4, k], color='C{}'.format(k), label='C{}'.format(k+1), alpha=0.9, zorder=-k*10-100)
+            main_ax.plot(comps[::1, k], color='C{}'.format(k), label='C{}'.format(k+1), alpha=0.9, zorder=-k*10-100)
 
             ax = fig3.add_subplot(gs[2, k])
             ax.plot([-0.5, 0.5], [1,1], color='C{}'.format(k), linewidth=3, alpha=0.9)
@@ -133,7 +133,7 @@ for subj_id in range(40):
                                           1-np.sum((target-comps[:, k])**2)/np.sum(target**2)))
             ax.set_title('C{}'.format(k+1))
 
-        main_ax.plot(target[::4],  '--', color='k', label=r'P4 $\alpha$-power', alpha=0.9)
+        main_ax.plot(target[::1],  '--', color='k', label=r'P4 $\alpha$-power', alpha=0.9)
         if n_comp < 10: main_ax.legend()
         plt.subplots_adjust(hspace=0.5)
         plt.suptitle('{} {}'.format(fb_type, subj_id))

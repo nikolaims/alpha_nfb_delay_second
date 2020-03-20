@@ -164,8 +164,8 @@ for subj_id in range(1, 2):
     main_ax.legend()
     plt.subplots_adjust(hspace=0.5)
     plt.suptitle('{} {}'.format(fb_type, subj_id))
-    plt.savefig('experiments/spocs/res/ssdcsp/{}ssdcsp{}_s{}.png'.format(n_comp, fb_type, subj_id), dpi=200)
-    plt.close()
+    # plt.savefig('experiments/spocs/res/ssdcsp/{}ssdcsp{}_s{}.png'.format(n_comp, fb_type, subj_id), dpi=200)
+    # plt.close()
 stats_df.to_pickle('experiments/spocs/res/ssd_csp_stats.pkl')
 
 import seaborn as sns
