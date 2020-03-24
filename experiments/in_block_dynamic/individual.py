@@ -12,7 +12,7 @@ from release.settings import CHANNELS, FS, FB_ALL, MONTAGE,  Montage
 from pynfb.signal_processing.decompositions import ICADecomposition
 
 
-eeg_path = 'release/data/eeg_allsubjs_eyefree_1_45hz_down250hz.pkl'
+eeg_path = 'release/data/FBLow_eeg_allsubjs_eyefree_1_45hz_down250hz.pkl'
 info_path = 'release/data/info_allsubjs.pkl'
 
 eeg_df = pd.read_pickle(eeg_path)
@@ -23,7 +23,7 @@ n_step = FS * 5
 n_epochs = (FS * 120 - n_times) // n_step
 n_blocks = len(FB_ALL)
 stats_df = pd.DataFrame(columns=['subj_id', 'fb_type', 'time', 'var'])
-for subj_id in range(40):
+for subj_id in range(50):
     fb_type = info_df[info_df['subj_id']==subj_id]['fb_type'].values[0]
 
     eeg_df_subj = eeg_df[eeg_df['subj_id'] == subj_id]
