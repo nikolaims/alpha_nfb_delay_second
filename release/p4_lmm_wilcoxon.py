@@ -3,6 +3,8 @@ from pymer4.models import Lm, Lmer
 import pandas as pd
 import numpy as np
 from scipy import stats
+from itertools import combinations
+from release.settings import FB_ALL
 
 def ranksums(x, y):
     p_value = stats.ranksums(x, y).pvalue
@@ -17,14 +19,22 @@ def ranksums(x, y):
 
 LOG = False
 STAT = ['wilcoxon', 'lmm'][0]
-stats_file = 'channels1_bands1_splitedTrue_median_threshs20.pkl'
+stats_file = 'FBLow_channels1_bands1_splitedFalse_median_threshs20.pkl'
 stats_df = pd.read_pickle('release/data/{}'.format(stats_file))
-stats_df = stats_df.loc[stats_df['block_number']> 1000]
+if 'splitedTrue' in stats_file:
+    stats_df = stats_df.loc[stats_df['block_number'] > 1000]
+else:
+    stats_df = stats_df.loc[stats_df['block_number'].isin(FB_ALL)]
 unique_blocks = list(stats_df['block_number'].unique())
 stats_df['k'] = stats_df['block_number'].apply(lambda x: unique_blocks.index(x))
+halfs_query_str = ['k < {}'.format(len(unique_blocks)//2), 'k >= {}'.format(len(unique_blocks)//2)]
+
+
 stats_df['subj_id_str'] = 's' + stats_df['subj_id'].astype('str')
 
-
+USE_FBLOW = True
+fb_types = ['FBLow', 'FB0', 'FB250', 'FB500', 'FBMock'][1 - int(USE_FBLOW):]
+fb_type_colors = ['#5be7bd', '#3CB4E8', '#438BA8', '#002A3B', '#FE4A49'][1 - int(USE_FBLOW):]
 
 t_stat_df = pd.DataFrame(columns=['metric_type', 'threshold_factor', 'Contrast', 'T-stat'])
 
@@ -36,7 +46,7 @@ if STAT == "lmm":
                 model = Lmer('log(metric) ~ k:fb_type + (1 |subj_id_str)', data=data)
             else:
                 model = Lmer('metric ~ k:fb_type + (1 |subj_id_str)', data=data)
-            model.fit(factors={'fb_type': ['FB0', 'FB250', 'FB500', 'FBMock']}, ordered=True, summarize=False)
+            model.fit(factors={'fb_type': fb_types}, ordered=True, summarize=False)
             print('***', metric_type)
             res = model.post_hoc('fb_type')[1][['Contrast', 'T-stat']]
             res['Stat'] = res['T-stat']
@@ -46,7 +56,8 @@ if STAT == "lmm":
             t_stat_df = t_stat_df.append(res, ignore_index=True)
 else:
 
-    contrasts = ['FB0 - FBMock', 'FB250 - FBMock', 'FB500 - FBMock', 'FB0 - FB500', 'FB250 - FB500', 'FB0 - FB250']
+    # contrasts = ['FB0 - FBMock', 'FB250 - FBMock', 'FB500 - FBMock', 'FB0 - FB500', 'FB250 - FB500', 'FB0 - FB250']
+    contrasts = [' - '.join(pair) for pair in combinations(fb_types, 2)]
     for threshold_factor in stats_df.threshold_factor.unique():
         for metric_type in ['magnitude', 'n_spindles', 'amplitude', 'duration']:
             data = stats_df.query(
@@ -62,11 +73,11 @@ else:
                     fun = (lambda x: np.log(x)) if metric_type in ['magnitude', 'amplitude'] else (lambda x: x)
                 else:
                     fun = lambda x: x
-                fb1_scores = fun(fb1_df.query('k>=15').groupby('subj_id').mean()['metric']) / fun(
-                    fb1_df.query('k<15').groupby(
+                fb1_scores = fun(fb1_df.query(halfs_query_str[1]).groupby('subj_id').mean()['metric']) / fun(
+                    fb1_df.query(halfs_query_str[0]).groupby(
                         'subj_id').mean()['metric'])
-                fb2_scores = fun(fb2_df.query('k>=15').groupby('subj_id').mean()['metric']) / fun(
-                    fb2_df.query('k<15').groupby(
+                fb2_scores = fun(fb2_df.query(halfs_query_str[1]).groupby('subj_id').mean()['metric']) / fun(
+                    fb2_df.query(halfs_query_str[0]).groupby(
                         'subj_id').mean()['metric'])
                 stat, p_value = ranksums(fb1_scores.values, fb2_scores.values)
                 t_stat_df = t_stat_df.append({'metric_type': metric_type, 'threshold_factor': threshold_factor,
@@ -75,11 +86,11 @@ else:
 
 import pylab as plt
 
-cm = dict(zip(['FB0', 'FB250', 'FB500', 'FBMock'], ['#3CB4E8', '#438BA8', '#002A3B', '#FE4A49']))
+cm = dict(zip(fb_types, fb_type_colors))
 
-for comp_with in ['FB0', 'FB250', 'FB500', 'FBMock']:
+for comp_with in fb_types:
 
-    contrasts = ['{} - {}'.format(fb_type, comp_with) for fb_type in ['FB0', 'FB250', 'FB500', 'FBMock'] if fb_type!=comp_with]
+    contrasts = ['{} - {}'.format(fb_type, comp_with) for fb_type in fb_types if fb_type!=comp_with]
     fig, axes = plt.subplots(1, 4, sharey='all', sharex='all', figsize=(8, 3))
 
     plt.suptitle('Comparison with {} condition'.format(comp_with))
@@ -108,7 +119,7 @@ for comp_with in ['FB0', 'FB250', 'FB500', 'FBMock']:
                 ax.axvline(128, color=cm[fb2_type], linestyle='--', zorder=-100)
                 ax.axvline(105 * 2 - 128, color=cm[fb2_type], linestyle='--', zorder=-100)
 
-    [axes[-1].plot(np.nan, color=cm[fb_type], label=fb_type)  for fb_type in ['FB0', 'FB250', 'FB500', 'FBMock']]
+    [axes[-1].plot(np.nan, color=cm[fb_type], label=fb_type)  for fb_type in fb_types]
     axes[-1].legend(loc='center left', bbox_to_anchor=(1, 0.5))
 
     [ax.set_xlabel('T-Stat' if STAT=='lmm' else 'Ranksum') for ax in axes[:]]
@@ -121,5 +132,5 @@ for comp_with in ['FB0', 'FB250', 'FB500', 'FBMock']:
         axes[0].set_ylim(45, 105)
 
 
-    plt.savefig('res_{}_{}{}_compwith{}.png'.format(STAT, 'median' if 'median' in stats_file else 'perc', '_log' if LOG else '', comp_with), dpi=200)
+    # plt.savefig('res_{}_{}{}_compwith{}.png'.format(STAT, 'median' if 'median' in stats_file else 'perc', '_log' if LOG else '', comp_with), dpi=200)
 # [ax.axvline(128, color=cm['FBMock'], linestyle='--', zorder=-100) for ax in axes.flatten()]

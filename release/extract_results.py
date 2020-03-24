@@ -5,7 +5,7 @@ from release.settings import FS, CHANNELS, FB_ALL, ICA_CHANNELS
 from release.utils import band_hilbert
 
 
-SPLIT_FB_BLOCKS = True
+SPLIT_FB_BLOCKS = False
 P4_ONLY = True
 USE_PERCENTILES = False
 channels = (['P4'] if P4_ONLY else CHANNELS)
