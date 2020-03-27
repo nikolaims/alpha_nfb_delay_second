@@ -3,11 +3,14 @@ import numpy as np
 import scipy.signal as sg
 import sys
 import h5py
+import os
+
 
 # import nfb lab data loader
 sys.path.insert(0, '/home/kolai/Projects/nfblab/nfb')
 from utils.load_results import load_data
 from release.settings import CHANNELS as channels
+from release.annotate_bad_segments import annotate_bad
 channels += ['PHOTO']
 
 
@@ -57,8 +60,17 @@ for subj_id, dataset in enumerate(datasets[:]):
     df[channels] = df[channels].values.dot(eye_rejection_matrix)
 
     # GFP threshold arthifact segments
-    th = np.abs(df[channels[:-1]]).rolling(int(fs), center=True).max().mean(1)
-    df = df.loc[th < GFP_THRESHOLD]
+    # th = np.abs(df[channels[:-1]]).rolling(int(fs), center=True).max().mean(1)
+    # df = df.loc[th < GFP_THRESHOLD]
+    print(subj_id)
+    mask_file_path = 'release/data/bad_annotations/good_mask_s{}.npy'.format(subj_id)
+    if os.path.exists(mask_file_path):
+        mask = np.load(mask_file_path)
+    else:
+        mask, annotations = annotate_bad(df[channels[:-1]], fs, channels[:-1], GFP_THRESHOLD)
+        annotations.save('release/data/bad_annotations/s{}.csv'.format(subj_id))
+        np.save(mask_file_path, mask)
+    df = df.loc[mask]
 
     # down sample to 250
     ba = sg.butter(4, np.array([1, 45])/fs*2, 'band')
