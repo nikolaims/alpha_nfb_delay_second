@@ -10,7 +10,8 @@ import os
 sys.path.insert(0, '/home/kolai/Projects/nfblab/nfb')
 from utils.load_results import load_data
 from release.settings import CHANNELS as channels
-from release.annotate_bad_segments import annotate_bad
+from release.utils import annotate_bad
+
 channels += ['PHOTO']
 from release.settings import CHANNELS_SEL
 
