@@ -11,7 +11,7 @@ def annotate_bad(data, fs, channels, threshold):
     mne_info = mne.create_info(ch_names=channels, sfreq=fs, ch_types='eeg')
     raw = mne.io.RawArray(data.values.T, mne_info)
     raw.set_annotations(gfp_ann)
-    fig = raw.plot(n_channels=32, duration=20, scalings={'eeg': 30e-6})
+    fig = raw.plot(n_channels=32, duration=30, scalings={'eeg': 60e-6})
     fig.canvas.key_press_event('a')
     plt.show(block=True)
     plt.close()
