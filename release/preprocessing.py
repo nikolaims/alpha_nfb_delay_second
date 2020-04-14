@@ -4,41 +4,32 @@ import scipy.signal as sg
 import sys
 import h5py
 import os
-
+import mne
 
 # import nfb lab data loader
 sys.path.insert(0, '/home/kolai/Projects/nfblab/nfb')
 from utils.load_results import load_data
-from release.settings import CHANNELS as channels
 from release.utils import annotate_bad
-
-channels += ['PHOTO']
-from release.settings import CHANNELS_SEL
-
+from release.settings import CHANNELS_SEL, MNE_INFO
 
 FLANKER_WIDTH = 2
 GFP_THRESHOLD = 100e-6
-
-# band hilbert helper
-
+bad_channels = {17: ['Pz'], 20: ['P7', 'P8', 'CP5'], 46: ['CP1'], 8: ['F3'], 35: ['P8'], 40: ['O1']}
 
 # collect info
 data_path = '/home/kolai/Data/alpha_delay2'
 info = pd.read_csv('release/data/alpha_subject_2_full.csv')
 datasets = [d for d in info['dataset'].unique() if (d is not np.nan)
-            and (info.query('dataset=="{}"'.format(d))['type'].values[0] in ['FB0', 'FBMock', 'FB250', 'FB500', 'FBLow'])][:]
-
-
+            and (info.query('dataset=="{}"'.format(d))['type'].values[0]
+                 in ['FB0', 'FBMock', 'FB250', 'FB500', 'FBLow'])][:]
 
 # store data
 columns = ['subj_id', 'block_number'] + CHANNELS_SEL + ['PHOTO'] + ['online_envelope']
-
 probes_df = pd.DataFrame(columns=columns, dtype='float32')
 datasets_df = pd.DataFrame(columns=['dataset', 'subj_id', 'band', 'fb_type', 'snr'])
-bad_channels = {17: 'Pz'}
 
+# iter subjects
 for subj_id, dataset in enumerate(datasets[:]):
-    if subj_id!=17: continue
     dataset_path = '{}/{}/experiment_data.h5'.format(data_path, dataset)
 
     # load fb signal params
@@ -71,8 +62,6 @@ for subj_id, dataset in enumerate(datasets[:]):
     th = np.abs(df[channels[:-1]]).rolling(int(fs), center=True).max().mean(1)
     df = df.loc[th < GFP_THRESHOLD]
 
-
-
     # down sample to 250
     ba = sg.butter(4, np.array([1, 100])/fs*2, 'band')
     df[channels[:-1]] = sg.filtfilt(*ba, df[channels[:-1]].values, axis=0) # except PHOTO
@@ -86,7 +75,13 @@ for subj_id, dataset in enumerate(datasets[:]):
     df = df.iloc[::2]
     FS = 250
 
-    print(subj_id, channels)
+    # interpolate bad channels
+    if subj_id in bad_channels:
+        raw = mne.io.RawArray(df[CHANNELS_SEL].values.T, MNE_INFO)
+        raw.info['bads'].extend(bad_channels[subj_id])
+        df[CHANNELS_SEL] = raw.copy().interpolate_bads().get_data().T
+
+    # annotate and delete bad segments
     mask_file_path = 'release/data/bad_annotations/1good_mask_s{}.npy'.format(subj_id)
     if os.path.exists(mask_file_path):
         mask = np.load(mask_file_path)
@@ -96,7 +91,6 @@ for subj_id, dataset in enumerate(datasets[:]):
         np.save(mask_file_path, mask)
     df = df.loc[mask]
 
-
     # estimate snr
     freq, pxx = sg.welch(df.query('block_name=="Baseline0"')['P4'], FS, nperseg=FS * 4)
     sig = pxx[(freq >= band[0]) & (freq <= band[1])].mean()
@@ -104,12 +98,11 @@ for subj_id, dataset in enumerate(datasets[:]):
             (freq >= band[1]) & (freq <= band[1] + FLANKER_WIDTH))].mean()
     snr = sig / noise
 
-
     # save data
     df['subj_id'] = subj_id
     probes_df = probes_df.append(df[columns].astype('float32'), ignore_index=True)
-    datasets_df = datasets_df.append({'dataset': dataset, 'subj_id': subj_id, 'band':band, 'fb_type': fb_type, 'snr': snr},
-                                     ignore_index=True)
+    datasets_df = datasets_df.append({'dataset': dataset, 'subj_id': subj_id, 'band':band, 'fb_type': fb_type,
+                                      'snr': snr}, ignore_index=True)
 
     # print info
     print(probes_df.tail())
