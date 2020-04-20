@@ -7,20 +7,23 @@ from itertools import combinations
 from release.settings import FB_ALL
 
 def ranksums(x, y):
-    p_value = stats.ranksums(x, y).pvalue
-    x, y = map(np.asarray, (x, y))
-    n1 = len(x)
-    n2 = len(y)
-    alldata = np.concatenate((x, y))
-    ranked = stats.rankdata(alldata)
-    x = ranked[:n1]
-    s = np.sum(x, axis=0)
+    res = stats.ranksums(x, y)
+    p_value = res.pvalue
+    # x, y = map(np.asarray, (x, y))
+    # n1 = len(x)
+    # n2 = len(y)
+    # alldata = np.concatenate((x, y))
+    # ranked = stats.rankdata(alldata)
+    # x = ranked[:n1]
+    # s = np.sum(x, axis=0)
+    s = res.statistic
     return s, p_value
 
 LOG = False
-STAT = ['wilcoxon', 'lmm'][0]
+STAT = ['wilcoxon', 'lmm'][1]
 stats_file = 'FBLow_channels1_bands1_splitedFalse_median_threshs20.pkl'
 stats_df = pd.read_pickle('release/data/{}'.format(stats_file))
+# stats_df = stats_df.loc[stats_df.subj_id!=28]
 if 'splitedTrue' in stats_file:
     stats_df = stats_df.loc[stats_df['block_number'] > 1000]
 else:
@@ -32,7 +35,7 @@ halfs_query_str = ['k < {}'.format(len(unique_blocks)//2), 'k >= {}'.format(len(
 
 stats_df['subj_id_str'] = 's' + stats_df['subj_id'].astype('str')
 
-USE_FBLOW = True
+USE_FBLOW = False
 fb_types = ['FBLow', 'FB0', 'FB250', 'FB500', 'FBMock'][1 - int(USE_FBLOW):]
 fb_type_colors = ['#5be7bd', '#3CB4E8', '#438BA8', '#002A3B', '#FE4A49'][1 - int(USE_FBLOW):]
 
@@ -105,7 +108,7 @@ for comp_with in fb_types:
                 if STAT == 'lmm':
                     data['Stat'] *= -1
                 else:
-                    data['Stat'] = 105*2-data['Stat']
+                    pass#data['Stat'] = 105*2-data['Stat']
             ax = axes[j_metric_type]
             ax.plot(data['Stat'].values, data['threshold_factor'].values, color=cm[fb1_type])
             reject_fdr, pval_fdr = fdr_correction(data['P-value'].values, alpha=0.1, method='indep')
@@ -116,20 +119,20 @@ for comp_with in fb_types:
                 ax.axvline(1.812, color=cm[fb2_type], linestyle='--', zorder=-100)
                 ax.axvline(-1.812, color=cm[fb2_type], linestyle='--', zorder=-100)
             else:
-                ax.axvline(128, color=cm[fb2_type], linestyle='--', zorder=-100)
-                ax.axvline(105 * 2 - 128, color=cm[fb2_type], linestyle='--', zorder=-100)
+                ax.axvline(1.64, color=cm[fb2_type], linestyle='--', zorder=-100)
+                ax.axvline(-1.64, color=cm[fb2_type], linestyle='--', zorder=-100)
 
     [axes[-1].plot(np.nan, color=cm[fb_type], label=fb_type)  for fb_type in fb_types]
     axes[-1].legend(loc='center left', bbox_to_anchor=(1, 0.5))
 
-    [ax.set_xlabel('T-Stat' if STAT=='lmm' else 'Ranksum') for ax in axes[:]]
+    [ax.set_xlabel('T-Stat' if STAT=='lmm' else 'Z-score') for ax in axes[:]]
 
     if 'median' in stats_file:
         axes[0].set_ylabel('Threshold factor')
         axes[0].set_ylim(0.85, 3.55)
     elif 'perc' in stats_file:
         axes[0].set_ylabel('Percentile')
-        axes[0].set_ylim(45, 105)
+        axes[0].set_ylim(-1.98, 1.98)
 
 
     # plt.savefig('res_{}_{}{}_compwith{}.png'.format(STAT, 'median' if 'median' in stats_file else 'perc', '_log' if LOG else '', comp_with), dpi=200)

@@ -15,6 +15,7 @@ from release.settings import CHANNELS_SEL, MNE_INFO
 FLANKER_WIDTH = 2
 GFP_THRESHOLD = 100e-6
 bad_channels = {17: ['Pz'], 20: ['P7', 'P8', 'CP5'], 46: ['CP1'], 8: ['F3'], 35: ['P8'], 40: ['O1']}
+bad_subjects = [18, 23, 33, 37, 38]
 
 # collect info
 data_path = '/home/kolai/Data/alpha_delay2'
@@ -30,6 +31,7 @@ datasets_df = pd.DataFrame(columns=['dataset', 'subj_id', 'band', 'fb_type', 'sn
 
 # iter subjects
 for subj_id, dataset in enumerate(datasets[:]):
+    if subj_id in bad_subjects: continue
     dataset_path = '{}/{}/experiment_data.h5'.format(data_path, dataset)
 
     # load fb signal params

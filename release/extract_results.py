@@ -21,7 +21,7 @@ res_df_name = 'FBLow_channels{}_bands{}_splited{}_{}_threshs{}'.format(len(chann
 print(res_df_name)
 
 # load pre filtered data
-probes_df = pd.read_pickle('release/data/P4FBLow_eeg_allsubjs_eyefree_1_45hz_down250hz.pkl')
+probes_df = pd.read_pickle('release/data/FBLow_eeg_allsubjs_eyefree_1_45hz_down250hz.pkl')
 
 # load datasets info
 datasets_df = pd.read_pickle('release/data/info_allsubjs.pkl')
@@ -106,14 +106,14 @@ for subj_id in datasets_df['subj_id'].values[:]:
                     # save metrics above for channel
                     stats_df = stats_df.append(pd.DataFrame(
                         {'subj_id': subj_id, 'channel': ch, 'fb_type': fb_type,
-                         'metric': [magnitude_j, n_spindles_j, duration_j, amplitude_j],
+                         'metric': [magnitude_j, n_spindles_j/(len(signal)/FS/60), duration_j, amplitude_j],
                          'metric_type': ['magnitude', 'n_spindles', 'duration', 'amplitude'],
                          'block_number': block_number, 'threshold_factor': threshold_factor, 'band': band_name}),
                         ignore_index=True)
 
     stats_df.to_pickle('release/data/temp/{}_{}.pkl'.format(res_df_name, subj_id))
 
-# stats_df = pd.DataFrame(columns=columns)
-# for subj_id in datasets_df['subj_id'].values[:]:
-#     stats_df = stats_df.append(pd.read_pickle('release/data/temp/{}_{}.pkl'.format(res_df_name, subj_id)))
-# stats_df.to_pickle('release/data/{}.pkl'.format(res_df_name))
+stats_df = pd.DataFrame(columns=columns)
+for subj_id in datasets_df['subj_id'].values[:]:
+    stats_df = stats_df.append(pd.read_pickle('release/data/temp/{}_{}.pkl'.format(res_df_name, subj_id)))
+stats_df.to_pickle('release/data/{}.pkl'.format(res_df_name))
