@@ -25,7 +25,7 @@ datasets = [d for d in info['dataset'].unique() if (d is not np.nan)
                  in ['FB0', 'FBMock', 'FB250', 'FB500', 'FBLow'])][:]
 
 # store data
-columns = ['subj_id', 'block_number'] + CHANNELS_SEL + ['PHOTO'] + ['online_envelope']
+columns = ['subj_id', 'block_number'] + CHANNELS_SEL + ['PHOTO'] + ['online_envelope'] + ['is_not_bad']
 probes_df = pd.DataFrame(columns=columns, dtype='float32')
 datasets_df = pd.DataFrame(columns=['dataset', 'subj_id', 'band', 'fb_type', 'snr'])
 
@@ -48,10 +48,10 @@ for subj_id, dataset in enumerate(datasets[:]):
     fb_type = info.loc[info['dataset']==dataset, 'type'].values[0]
 
     # rename FB blocks to "FB"
-    df['block_name'] = df['block_name'].apply(lambda x: 'FB' if 'FB' in x else x)
+    df['block_name'] = df['block_name'].apply(lambda x: 'FB' if ('FB' in x and 'Pause' not in x) else x)
 
-    # drop pauses
-    df = df.loc[df['block_name'].isin(['Baseline0', 'Close', 'Baseline', 'FB'])]
+    # drop pauses except PauseFB
+    df = df.loc[df['block_name'].isin(['Baseline0', 'Close', 'Baseline', 'FB', 'PauseFB'])]
 
     # remove eyes artifacts ICA
     df[channels] = df[channels].values.dot(eye_rejection_matrix)
@@ -91,10 +91,12 @@ for subj_id, dataset in enumerate(datasets[:]):
         mask, annotations = annotate_bad(df[CHANNELS_SEL], FS, CHANNELS_SEL, GFP_THRESHOLD)
         annotations.save('release/data/bad_annotations/s{}.csv'.format(subj_id))
         np.save(mask_file_path, mask)
-    df = df.loc[mask]
+
+    df['is_not_bad'] = mask.astype(int)
+    # df = df.loc[mask]
 
     # estimate snr
-    freq, pxx = sg.welch(df.query('block_name=="Baseline0"')['P4'], FS, nperseg=FS * 4)
+    freq, pxx = sg.welch(df.loc[mask].query('block_name=="Baseline0"')['P4'], FS, nperseg=FS * 4)
     sig = pxx[(freq >= band[0]) & (freq <= band[1])].mean()
     noise = pxx[((freq >= band[0] - FLANKER_WIDTH) & (freq <= band[0])) | (
             (freq >= band[1]) & (freq <= band[1] + FLANKER_WIDTH))].mean()
@@ -110,7 +112,8 @@ for subj_id, dataset in enumerate(datasets[:]):
     print(probes_df.tail())
     print('{} {:40s} {:10s} {:.2f}'.format(subj_id, dataset, fb_type, snr))
 
-probes_df[['subj_id', 'block_number']] = probes_df[['subj_id', 'block_number']].astype('int8')
+probes_df[['subj_id', 'block_number', 'is_not_bad']] = probes_df[['subj_id', 'block_number', 'is_not_bad']].astype('int8')
 probes_df = probes_df.loc[:,~probes_df.columns.duplicated()]
 probes_df.to_pickle('release/data/FBLow_eeg_allsubjs_eyefree_1_45hz_down250hz.pkl')
+probes_df[['subj_id', 'block_number', 'P4', 'PHOTO', 'online_envelope', 'is_not_bad']].to_pickle('release/data/p4_5_groups_clear_fs250Hz_prefilt1_100Hz.pkl')
 datasets_df.to_pickle('release/data/info_allsubjs.pkl')
