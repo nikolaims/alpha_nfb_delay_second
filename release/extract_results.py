@@ -1,11 +1,9 @@
 import pandas as pd
 import numpy as np
 from tqdm import tqdm
-from release.settings import FS, CHANNELS, FB_ALL, ICA_CHANNELS
+from release.settings import FS, CHANNELS, FB_ALL, ICA_CHANNELS, MEANINGFUL_BLOCKS
 from release.utils import band_hilbert
 
-
-SPLIT_FB_BLOCKS = False
 P4_ONLY = True
 USE_PERCENTILES = False
 channels = (['P4'] if P4_ONLY else CHANNELS)
@@ -15,13 +13,13 @@ else:
     threshold_factors = np.arange(1, 3.5, 0.125)
 #
 bands = dict(zip(['alpha'], [1]))
-res_df_name = 'FBLow_channels{}_bands{}_splited{}_{}_threshs{}'.format(len(channels), len(bands), SPLIT_FB_BLOCKS,
+res_df_name = 'FBLow_channels{}_bands{}_{}_threshs{}'.format(len(channels), len(bands),
                                                                     'perc' if USE_PERCENTILES else 'median',
                                                                     len(threshold_factors))
 print(res_df_name)
 
 # load pre filtered data
-probes_df = pd.read_pickle('release/data/FBLow_eeg_allsubjs_eyefree_1_45hz_down250hz.pkl')
+probes_df = pd.read_pickle('release/data/p4_5_groups_clear_fs250Hz_prefilt1_100Hz.pkl')
 
 # load datasets info
 datasets_df = pd.read_pickle('release/data/info_allsubjs.pkl')
@@ -46,15 +44,11 @@ for subj_id in datasets_df['subj_id'].values[:]:
         block_numbers = data['block_number'].values
         unique_block_numbers = np.unique(block_numbers)
 
-        if SPLIT_FB_BLOCKS:
-            split_block_numbers = []
-            for block_number in unique_block_numbers:
-                if block_number in FB_ALL:
-                    split_block_numbers += [block_number*1000 + 1, block_number*1000 + 2]
-                else:
-                    split_block_numbers += [block_number]
-            unique_block_numbers = split_block_numbers
-        # print(unique_block_numbers)
+        # select meaningful blocks (no pauses)
+        unique_block_numbers = [u for u in unique_block_numbers if u in MEANINGFUL_BLOCKS]
+
+        is_not_bad = (data['is_not_bad'] == 1).values
+        block_numbers = block_numbers[is_not_bad]
 
         for ch in tqdm(channels, str(subj_id) + band_name):
             # channel data if channels is ICA get projection
@@ -62,19 +56,13 @@ for subj_id in datasets_df['subj_id'].values[:]:
 
             # compute envelope
             env = np.abs(band_hilbert(ch_data, FS, band))
+            env = env[is_not_bad]
+
             median = np.median(env[np.isin(block_numbers, FB_ALL)]) #TODO: what blocks we need to use to compute median
 
             for block_number in unique_block_numbers:
-                # get block envelope as signal
-                if block_number < 1000:
-                    signal = env[block_numbers == block_number]
-                else: # only if any block split
-                    signal = env[block_numbers == block_number // 1000]
-                    if block_number % 1000 == 1:
-                        signal = signal[:len(signal) // 2]
-                    elif block_number % 1000 == 2:
-                        signal = signal[len(signal) // 2:]
-                # print(block_number, len(signal), sep='\t')
+                signal = env[block_numbers == block_number]
+
                 # mean magnitude in uV
                 magnitude_j = np.mean(signal) * 1e6
 
