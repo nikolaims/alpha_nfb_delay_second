@@ -13,11 +13,12 @@ CHANNELS_SEL = ['F3', 'FZ', 'F4', 'FC5', 'FC1', 'FC2', 'FC6', 'C3', 'CZ', 'C4', 
 
 rename_chs_to_standard_1020 = lambda x: [ch.replace('Z', 'z').replace('FP', 'Fp') for ch in x]
 
-BLOCK_NAMES = [None, 'Close', 'Baseline', 'PauseBL', 'Baseline', 'PauseFB', 'FB', 'PauseFB', 'FB', 'PauseFB', 'FB',
+BLOCK_NAMES = [None, 'Close', 'Baseline0', 'PauseBL', 'Baseline', 'PauseFB', 'FB', 'PauseFB', 'FB', 'PauseFB', 'FB',
                'PauseFB', 'FB', 'PauseFB', 'FB', 'PauseFB', 'FB', 'PauseFB', 'FB', 'PauseFB', 'FB', 'PauseFB', 'FB',
                'PauseFB', 'FB', 'PauseFB', 'FB', 'PauseFB', 'FB', 'PauseFB', 'FB', 'PauseFB', 'FB', 'PauseFB', 'FB',
                'PauseBL', 'Baseline']
 FB_ALL = [k for k, name in enumerate(BLOCK_NAMES) if name=='FB']
+MEANINGFUL_BLOCKS = [k for k, name in enumerate(BLOCK_NAMES) if name in ['FB', 'Close', 'Baseline', 'Baseline0']]
 CLOSE = 1
 OPEN = 2
 BASELINE_BEFORE = 4

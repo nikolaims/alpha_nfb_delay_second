@@ -13,13 +13,13 @@ else:
     threshold_factors = np.arange(1, 3.5, 0.125)
 #
 bands = dict(zip(['alpha'], [1]))
-res_df_name = 'FBLow_channels{}_bands{}_{}_threshs{}'.format(len(channels), len(bands),
+res_df_name = 'block_stats_{}channels_{}bands_{}_{}ths'.format(len(channels), len(bands),
                                                                     'perc' if USE_PERCENTILES else 'median',
                                                                     len(threshold_factors))
 print(res_df_name)
 
 # load pre filtered data
-probes_df = pd.read_pickle('release/data/p4_5_groups_clear_fs250Hz_prefilt1_100Hz.pkl')
+probes_df = pd.read_pickle('release/data/preprocessed_eeg_p4_5_groups_clear_fs250Hz_prefilt1_100Hz.pkl')
 
 # load datasets info
 datasets_df = pd.read_pickle('release/data/info_allsubjs.pkl')

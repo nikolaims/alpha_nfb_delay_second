@@ -114,6 +114,7 @@ for subj_id, dataset in enumerate(datasets[:]):
 
 probes_df[['subj_id', 'block_number', 'is_not_bad']] = probes_df[['subj_id', 'block_number', 'is_not_bad']].astype('int8')
 probes_df = probes_df.loc[:,~probes_df.columns.duplicated()]
-probes_df.to_pickle('release/data/FBLow_eeg_allsubjs_eyefree_1_45hz_down250hz.pkl')
-probes_df[['subj_id', 'block_number', 'P4', 'PHOTO', 'online_envelope', 'is_not_bad']].to_pickle('release/data/p4_5_groups_clear_fs250Hz_prefilt1_100Hz.pkl')
+probes_df.to_pickle('release/data/preprocessed_eeg_all_chs_5_groups_clear_fs250Hz_prefilt1_100Hz.pkl')
+probes_df[['subj_id', 'block_number', 'P4', 'PHOTO', 'online_envelope', 'is_not_bad']].to_pickle(
+    'release/data/preprocessed_eeg_p4_5_groups_clear_fs250Hz_prefilt1_100Hz.pkl')
 datasets_df.to_pickle('release/data/info_allsubjs.pkl')
