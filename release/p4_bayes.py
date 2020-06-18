@@ -38,8 +38,8 @@ with pm.Model() as model: # model specifications in PyMC3 are wrapped in a with-
     intercept = pm.Normal('intercept', y[x==0].mean(), sigma=y[x==0].std())
     intercept_subject = pm.Normal('intercept_subj', intercept, sigma=sigma_intercept_subject, shape=subjects.max()+1)
 
-    slope_group = pm.Normal('slope_group', 0, sigma=(max(y)-min(y))/15, shape=groups.max() + 1)
-    sigma_slope_subject = pm.HalfCauchy('sigma_slope_subject', beta=(max(y)-min(y))/15, shape=groups.max() + 1)
+    slope_group = pm.Normal('slope_group', 0, sigma=(max(y)-min(y))/max(x), shape=groups.max() + 1)
+    sigma_slope_subject = pm.HalfCauchy('sigma_slope_group', beta=(max(y)-min(y))/max(x), shape=groups.max() + 1)
     slope_subject = pm.Normal('slope_subject', slope_group[subjects_groups], sigma=sigma_slope_subject[subjects_groups], shape=subjects.max() + 1)
 
     sigma = pm.HalfCauchy('sigma', beta=np.array([y[subjects==s].std() for s in np.unique(subjects)]), shape=subjects.max() + 1)
