@@ -4,7 +4,32 @@ import pandas as pd
 import numpy as np
 from scipy import stats
 from itertools import combinations
+
+from scipy.stats import rankdata, linregress
+
 from release.settings import FB_ALL
+
+def get_stat_mul(x):
+    slopes = np.zeros(x.shape[0])
+    for j, xs in enumerate(x):
+        lr = linregress(np.arange(15), xs)
+        slopes[j] = xs.mean()/lr.intercept*100-100
+    return np.mean(slopes)
+
+
+def get_perm_pvalue(fb1_df, fb2_df, n_perm=1000):
+    fb1_x = np.array([subj_df['metric'].values for _, subj_df in fb1_df.groupby('subj_id')])[:8]
+    fb2_x = np.array([subj_df['metric'].values for _, subj_df in fb2_df.groupby('subj_id')])[:8]
+    all_x = np.vstack([fb1_x, fb2_x])
+    obs = get_stat_mul(fb1_x) - get_stat_mul(fb2_x)
+    stats2 = np.zeros(n_perm)
+    for j_perm in range(n_perm):
+        indx = np.random.permutation(all_x.shape[0])
+        fb1_x_perm = all_x[indx[:fb1_x.shape[0]]]
+        fb2_x_perm = all_x[indx[fb1_x.shape[0]:]]
+        stats2[j_perm] = get_stat_mul(fb1_x_perm) - get_stat_mul(fb2_x_perm)
+    return obs, sum(stats2 > obs) / n_perm
+
 
 def ranksums(x, y):
     res = stats.ranksums(x, y)
@@ -20,8 +45,8 @@ def ranksums(x, y):
     return s, p_value
 
 LOG = False
-STAT = ['wilcoxon', 'lmm'][1]
-stats_file = 'FBLow_channels1_bands1_splitedFalse_median_threshs20.pkl'
+STAT = ['wilcoxon', 'lmm', 'perm'][0]
+stats_file = 'block_stats_1channels_1bands_median_20ths.pkl'
 stats_df = pd.read_pickle('release/data/{}'.format(stats_file))
 # stats_df = stats_df.loc[stats_df.subj_id!=28]
 if 'splitedTrue' in stats_file:
@@ -57,7 +82,7 @@ if STAT == "lmm":
             res['metric_type'] = metric_type
             res['threshold_factor'] = threshold_factor
             t_stat_df = t_stat_df.append(res, ignore_index=True)
-else:
+elif STAT == 'wilcoxon':
 
     # contrasts = ['FB0 - FBMock', 'FB250 - FBMock', 'FB500 - FBMock', 'FB0 - FB500', 'FB250 - FB500', 'FB0 - FB250']
     contrasts = [' - '.join(pair) for pair in combinations(fb_types, 2)]
@@ -87,6 +112,25 @@ else:
                                               'Contrast': contrast, 'Stat': stat, 'P-value': p_value},
                                              ignore_index=True)
 
+else:
+    contrasts = [' - '.join(pair) for pair in combinations(fb_types, 2)]
+    for threshold_factor in stats_df.threshold_factor.unique()[::2]:
+        for metric_type in ['magnitude', 'n_spindles', 'amplitude', 'duration']:
+            data = stats_df.query(
+                'metric_type=="{}" & threshold_factor=={}'.format(metric_type, threshold_factor)).copy()
+            if not (np.all(np.isfinite(data['metric'])) and data['metric'].notna().all()):
+                print(threshold_factor, metric_type)
+
+            for contrast in contrasts:
+                fb1_type, fb2_type = contrast.split(' - ')
+                fb1_df = data.query('fb_type=="{}"'.format(fb1_type))
+                fb2_df = data.query('fb_type=="{}"'.format(fb2_type))
+                stat, p_value = get_perm_pvalue(fb1_df, fb2_df, 1000)
+                t_stat_df = t_stat_df.append({'metric_type': metric_type, 'threshold_factor': threshold_factor,
+                                              'Contrast': contrast, 'Stat': stat, 'P-value': p_value},
+                                             ignore_index=True)
+
+
 import pylab as plt
 
 cm = dict(zip(fb_types, fb_type_colors))
@@ -111,7 +155,7 @@ for comp_with in fb_types:
                     pass#data['Stat'] = 105*2-data['Stat']
             ax = axes[j_metric_type]
             ax.plot(data['Stat'].values, data['threshold_factor'].values, color=cm[fb1_type])
-            reject_fdr, pval_fdr = fdr_correction(data['P-value'].values, alpha=0.1, method='indep')
+            reject_fdr, pval_fdr = fdr_correction(data['P-value'].values, alpha=0.05, method='indep')
             if len(data['Stat'].values[reject_fdr]) > 0:
                 ax.plot(data['Stat'].values[reject_fdr], data['threshold_factor'].values[reject_fdr], '*',
                         color=cm[fb1_type], markersize=5, alpha=0.9)
