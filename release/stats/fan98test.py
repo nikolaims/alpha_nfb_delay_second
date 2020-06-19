@@ -69,14 +69,16 @@ def legendre_transform(x):
     return x.dot(q)
 
 
-def simulate_h0_distribution(n, d=None, n_iter=100000, transform='legendre'):
+def simulate_h0_distribution(n, d=None, n_iter=100000, transform='legendre', verbose=True):
     cash_dir = '_fan98_temp'
     cash_file = os.path.join(cash_dir, 'h0_n{}_d{}_n_iter{}_{}.npy'.format(n, d, n_iter, transform))
     if os.path.exists(cash_file):
-        print('Load from {}'.format(cash_file))
+        if verbose:
+            print('Load from {}'.format(cash_file))
         stats_h0 = np.load(cash_file)
     else:
-        print('Simulate and save to {}'.format(cash_file))
+        if verbose:
+            print('Simulate and save to {}'.format(cash_file))
         stats_h0 = np.zeros(n_iter)
         for k in range(n_iter):
             if d is None:
