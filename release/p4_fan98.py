@@ -41,10 +41,12 @@ for ind1 in range(len(fb_types)):
 
 stats_all_metrics = {}
 p_vals_all_metrics = {}
+z_scores_all_metrics = {}
 metric_types = ['magnitude', 'n_spindles', 'duration', 'amplitude']
 for metric_type in metric_types:
 
     stats_all_th = []
+    z_scores_all_th = []
     for th in (unique_thresholds if metric_type != 'magnitude' else unique_thresholds[:1]):
         stats_df = stats_df_all.query('threshold_factor=={} & metric_type=="{}"'.format(th, metric_type))
         fb_data_points = []
@@ -57,13 +59,18 @@ for metric_type in metric_types:
                 data_points[j, :] /= data_points[j, :].mean()
             fb_data_points.append(data_points[:, :])
         stats = []
+        z_scores = []
+        ds = []
         for comp in comps:
             ind1, ind2 = [fb_types.index(fb_type) for fb_type in comp.split(' - ')]
             z_score, d = eval_z_score(fb_data_points[ind2], fb_data_points[ind1])
             stat = STAT_FUN(TRANSFORM_FUN(z_score), d)
             # p = P_VAL_FUN(stat, h0_distribution=h0_distributions_dict[d])
             stats.append(stat)
+            z_scores.append(z_score)
+            ds.append(d)
         stats_all_th.append(stats)
+        z_scores_all_th.append(z_scores)
 
 
     stats_all_th = np.array(stats_all_th).T
@@ -72,12 +79,13 @@ for metric_type in metric_types:
     _, p_corrected = fdr_correction(p)
     stats_all_metrics[metric_type] = stats_all_th
     p_vals_all_metrics[metric_type] = p_corrected
+    z_scores_all_metrics[metric_type] = np.array(z_scores_all_th)
 
 
 
 
 sns.set_style("dark")
-fig = plt.figure(constrained_layout=True, figsize=(6, 2.7))
+fig = plt.figure(constrained_layout=True, figsize=(6, 2.5))
 axes = []
 gs = fig.add_gridspec(1, 7)
 axes.append(fig.add_subplot(gs[0]))
@@ -110,3 +118,41 @@ for ax, metric_type in zip(axes, metric_types):
 cbar_ax.set_yticklabels([0.05, 0.01, 0.001, 0.0001])
 cbar_ax.set_title('p-value\n(FDR)')
 plt.subplots_adjust(left = 0.2, right=0.8, bottom=0.2, top=0.8)
+
+
+from scipy.stats import t as tdist
+fig, axes = plt.subplots(len(comps), len(metric_types), figsize=(6, 4))
+
+for j_metric_type, metric_type in enumerate(metric_types):
+    p_corrected = p_vals_all_metrics[metric_type]
+    z_score = z_scores_all_metrics[metric_type]
+    min_indexes = np.argmin(p_corrected, 1)
+    axes[0, j_metric_type].set_title(metric_type if metric_type != 'magnitude' else 'mag.')
+
+    for j_comp, comp in enumerate(comps):
+        ax = axes[j_comp, j_metric_type]
+        if p_corrected[j_comp,min_indexes[j_comp]] < 0.05:
+            ax.plot(np.arange(len(unique_blocks))+1, z_score[min_indexes[j_comp], j_comp], '.-', markersize=2, linewidth=0.5)
+        else:
+            ax.plot(np.nan)
+        ax.set_ylim(-5, 5)
+        ax.set_xlim(0.5, 15.5)
+        if j_comp < len(comps)-1:
+            ax.set_xticks([])
+        else:
+            ax.set_xlabel('block')
+
+
+        ax.axhline(0, color='k', linewidth=0.5, zorder=-100, alpha=0.5)
+        ax.axhline(tdist.ppf(0.975, ds[j_comp]), color='k', linewidth=0.5, zorder=-100, alpha=0.5, linestyle='--')
+        ax.axhline(tdist.ppf(0.025, ds[j_comp]), color='k', linewidth=0.5, zorder=-100, alpha=0.5, linestyle='--')
+
+        if j_metric_type != 0:
+            ax.set_yticks([])
+        else:
+            # ax.yaxis.tick_right()
+            ax.set_yticks([0])
+            ax.set_yticklabels([comp])
+        # if j_metric_type == 0 :
+        #     ax.set_ylabel(comp, rotation=0, labelpad=30, size=8)
+plt.subplots_adjust(left = 0.2, right=0.8, bottom=0.2, top=0.8, hspace=0.01, wspace=0.07)
