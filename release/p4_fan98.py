@@ -24,6 +24,15 @@ stats_df_all['k'] = stats_df_all['block_number'].apply(lambda x: unique_blocks.i
 metric_type = 'amplitude'
 unique_thresholds = stats_df_all['threshold_factor'].unique()
 fb_types = ['FB0', 'FB250', 'FB500', 'FBMock'][::-1]
+stats_df_all = stats_df_all.loc[stats_df_all['fb_type'].isin(fb_types)]
+
+n_subjects_list = sorted([group['subj_id'].nunique() for name, group in stats_df_all.groupby('fb_type')])
+d_list = np.arange(sum(n_subjects_list[:2]) - 2, sum(n_subjects_list[-2:]) - 2 + 1)
+h0_distributions_dict = {}
+for d in d_list:
+    h0_distributions_dict[d] = simulate_h0_distribution(n=len(unique_blocks), d=d,
+                                                        transform=TRANSFORM_FUN, stat_fun=STAT_FUN, verbose=True)
+
 
 comps = []
 for ind1 in range(len(fb_types)):
@@ -51,12 +60,7 @@ for metric_type in metric_types:
             # plt.errorbar(np.arange(15)+ind*0.05, data_points.mean(0), 2*data_points.std(0)/np.sqrt(len(unique_subj)))
             # plt.plot(np.arange(15), data_points.T, color='C{}'.format(ind), alpha=0.5)
 
-        n_subjects_list = sorted([fb_data_points[k].shape[0] for k in range(len(fb_data_points))])
-        d_list = np.arange(sum(n_subjects_list[:2]) - 2, sum(n_subjects_list[-2:]) - 2 + 1)
-        h0_distributions_dict = {}
-        for d in d_list:
-            h0_distributions_dict[d] = simulate_h0_distribution(fb_data_points[0].shape[1], d,
-                                                                transform=TRANSFORM_FUN, stat_fun=STAT_FUN, verbose=True)
+
 
         p_vals = []
         for comp in comps:
