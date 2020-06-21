@@ -1,7 +1,8 @@
 import numpy as np
 import os
 
-def fan98test(data_points1, data_points2, plot_steps=False, transform='legendre'):
+
+def eval_z_score(data_points1, data_points2):
     # mean, std and number of samples
     x1_mean = np.mean(data_points1, 0)
     x1_std = np.std(data_points1, 0)
@@ -15,26 +16,12 @@ def fan98test(data_points1, data_points2, plot_steps=False, transform='legendre'
 
     # z - score over time(see formula 13)
     z_score = (x1_mean - x2_mean) / (x1_std ** 2 / x1_n + x2_std ** 2 / x2_n) ** 0.5
+    return z_score, d
 
-    stat = eval_fan98_stat(z_score, d, transform)
+
+def adaptive_neyman_test(z_star, d):
+
     # eval statistic for each number of first blocks (see fomula 6)
-
-    # chi2 statistic benchmark(see formula 2)
-    # chi2stat = np.sum(z_score**2)
-
-    return stat
-
-
-def eval_fan98_stat(z_star, d, transform):
-    if transform == 'legendre':
-        z_star = legendre_transform(z_star)
-    elif transform == 'fft':
-        z_star = fourier_transform(z_star)
-    elif transform is None or transform=='identity':
-        pass
-    else:
-        raise TypeError('Unknown method type')
-
     T_an = np.zeros(len(z_star))
     d_factor = 1 if d is None else ((d - 2) ** 2 * (d - 4) / (d ** 2 * (d - 1))) ** 0.5
     for m in range(len(z_star)):
@@ -48,6 +35,11 @@ def eval_fan98_stat(z_star, d, transform):
 
     stat = (2 * loglogn) ** 0.5 * stat - (2 * loglogn + 0.5 * np.log(loglogn) - 0.5 * np.log(4 * np.pi))
     return stat
+
+def corrcoef_test(z_star, d):
+    stat = np.corrcoef(np.arange(len(z_star)), z_star)[0, 1]
+    return stat
+
 
 def fourier_transform(x):
     # fft (see formula between 17 and 18)
@@ -69,9 +61,14 @@ def legendre_transform(x):
     return x.dot(q)
 
 
-def simulate_h0_distribution(n, d=None, n_iter=100000, transform='legendre', verbose=True):
+def identity_transform(x):
+    return x
+
+
+def simulate_h0_distribution(n, d, transform, stat_fun, n_iter=200000, verbose=True):
     cash_dir = '_fan98_temp'
-    cash_file = os.path.join(cash_dir, 'h0_n{}_d{}_n_iter{}_{}.npy'.format(n, d, n_iter, transform))
+    cash_file = os.path.join(cash_dir, 'h0_{}_{}_n{}_d{}_n_iter{}.npy'
+                                       .format(stat_fun.__name__, transform.__name__, n, d, n_iter))
     if os.path.exists(cash_file):
         if verbose:
             print('Load from {}'.format(cash_file))
@@ -85,15 +82,23 @@ def simulate_h0_distribution(n, d=None, n_iter=100000, transform='legendre', ver
                 z_star = np.random.normal(size=n)
             else:
                 z_star = np.random.standard_t(d, size=n)
-            stats_h0[k] = eval_fan98_stat(z_star, d, transform)
+            z_star = transform(z_star)
+            stats_h0[k] = stat_fun(z_star, d)
         if not os.path.exists(cash_dir):
             os.makedirs(cash_dir)
         np.save(cash_file, stats_h0)
     return stats_h0
 
 
-def get_p_val(val, h0_distribution):
+def get_p_val_one_tailed(val, h0_distribution):
     p_val = np.sum(val < h0_distribution)/h0_distribution.shape[0]
+    return p_val
+
+
+def get_p_val_two_tailed(val, h0_distribution):
+    upper_count = np.sum(np.abs(val) < h0_distribution)
+    lower_count = np.sum(h0_distribution < -np.abs(val))
+    p_val = (upper_count + lower_count) / h0_distribution.shape[0]
     return p_val
 
 if __name__ == '__main__':

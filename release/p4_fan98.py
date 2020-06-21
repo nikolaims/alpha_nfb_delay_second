@@ -1,10 +1,18 @@
 from release.settings import FB_ALL
 import pandas as pd
 import numpy as np
-from release.stats.fan98test import fan98test, simulate_h0_distribution, get_p_val
+from release.stats.fan98test import eval_z_score, simulate_h0_distribution, get_p_val_one_tailed, adaptive_neyman_test, legendre_transform, identity_transform, corrcoef_test, get_p_val_two_tailed
 import pylab as plt
 import seaborn as sns
 from mne.stats import fdr_correction
+
+# STAT_FUN = corrcoef_test
+# TRANSFORM_FUN = identity_transform
+# P_VAL_FUN = get_p_val_two_tailed
+
+STAT_FUN = adaptive_neyman_test
+TRANSFORM_FUN = legendre_transform
+P_VAL_FUN = get_p_val_one_tailed
 
 stats_file = 'block_stats_1channels_1bands_median_20ths.pkl'
 stats_df_all = pd.read_pickle('release/data/{}'.format(stats_file))
@@ -47,14 +55,16 @@ for metric_type in metric_types:
         d_list = np.arange(sum(n_subjects_list[:2]) - 2, sum(n_subjects_list[-2:]) - 2 + 1)
         h0_distributions_dict = {}
         for d in d_list:
-            h0_distributions_dict[d] = simulate_h0_distribution(fb_data_points[0].shape[1], d, verbose=False)
+            h0_distributions_dict[d] = simulate_h0_distribution(fb_data_points[0].shape[1], d,
+                                                                transform=TRANSFORM_FUN, stat_fun=STAT_FUN, verbose=True)
 
         p_vals = []
         for comp in comps:
             ind1, ind2 = [fb_types.index(fb_type) for fb_type in comp.split(' - ')]
-            stat = fan98test(fb_data_points[ind2], fb_data_points[ind1])
-            d = fb_data_points[ind1].shape[0] + fb_data_points[ind2].shape[0] - 2
-            p = get_p_val(stat, h0_distribution=h0_distributions_dict[d])
+            z_score, d = eval_z_score(fb_data_points[ind2], fb_data_points[ind1])
+
+            stat = STAT_FUN(TRANSFORM_FUN(z_score), d)
+            p = P_VAL_FUN(stat, h0_distribution=h0_distributions_dict[d])
             p_vals.append(p)
         p_vals_all_th.append(p_vals)
 
