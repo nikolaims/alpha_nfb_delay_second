@@ -39,11 +39,12 @@ for ind1 in range(len(fb_types)):
     for ind2 in range(len(fb_types) - 1, ind1, -1):
         comps.append(fb_types[ind1] + ' - ' + fb_types[ind2])
 
+stats_all_metrics = {}
 p_vals_all_metrics = {}
 metric_types = ['magnitude', 'n_spindles', 'duration', 'amplitude']
 for metric_type in metric_types:
 
-    p_vals_all_th = []
+    stats_all_th = []
     for th in (unique_thresholds if metric_type != 'magnitude' else unique_thresholds[:1]):
         stats_df = stats_df_all.query('threshold_factor=={} & metric_type=="{}"'.format(th, metric_type))
         fb_data_points = []
@@ -53,29 +54,26 @@ for metric_type in metric_types:
             data_points = np.zeros((len(unique_subj), len(FB_ALL)))
             for j, subj_id in enumerate(unique_subj):
                 data_points[j, :] = fb_stats_df.query('subj_id=={}'.format(subj_id))['metric']
-                # data_points[j, :] /= data_points[j, 0]
                 data_points[j, :] /= data_points[j, :].mean()
             fb_data_points.append(data_points[:, :])
-
-            # plt.errorbar(np.arange(15)+ind*0.05, data_points.mean(0), 2*data_points.std(0)/np.sqrt(len(unique_subj)))
-            # plt.plot(np.arange(15), data_points.T, color='C{}'.format(ind), alpha=0.5)
-
-
-
-        p_vals = []
+        stats = []
         for comp in comps:
             ind1, ind2 = [fb_types.index(fb_type) for fb_type in comp.split(' - ')]
             z_score, d = eval_z_score(fb_data_points[ind2], fb_data_points[ind1])
-
             stat = STAT_FUN(TRANSFORM_FUN(z_score), d)
-            p = P_VAL_FUN(stat, h0_distribution=h0_distributions_dict[d])
-            p_vals.append(p)
-        p_vals_all_th.append(p_vals)
+            # p = P_VAL_FUN(stat, h0_distribution=h0_distributions_dict[d])
+            stats.append(stat)
+        stats_all_th.append(stats)
 
 
-    p = np.array(p_vals_all_th).T
+    stats_all_th = np.array(stats_all_th).T
+    get_p_val_vec = np.vectorize(lambda x: P_VAL_FUN(x, h0_distributions_dict[d]))
+    p = get_p_val_vec(stats_all_th)
     _, p_corrected = fdr_correction(p)
+    stats_all_metrics[metric_type] = stats_all_th
     p_vals_all_metrics[metric_type] = p_corrected
+
+
 
 
 sns.set_style("dark")
