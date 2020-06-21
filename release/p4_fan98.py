@@ -35,7 +35,7 @@ metric_types = ['magnitude', 'n_spindles', 'duration', 'amplitude']
 for metric_type in metric_types:
 
     p_vals_all_th = []
-    for th in unique_thresholds:
+    for th in (unique_thresholds if metric_type != 'magnitude' else unique_thresholds[:1]):
         stats_df = stats_df_all.query('threshold_factor=={} & metric_type=="{}"'.format(th, metric_type))
         fb_data_points = []
         for ind, fb_type in enumerate(fb_types):
@@ -89,7 +89,6 @@ for ax, metric_type in zip(axes, metric_types):
     p_corrected = p_vals_all_metrics[metric_type]
 
     if metric_type == 'magnitude':
-        p_corrected = p_corrected[:, :1]
         xticklabels = []
         yticklabels = comps
     else:
