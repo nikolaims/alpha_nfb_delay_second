@@ -37,7 +37,7 @@ for d in d_list:
 comps = []
 for ind1 in range(len(fb_types)):
     for ind2 in range(len(fb_types) - 1, ind1, -1):
-        comps.append(fb_types[ind1] + ' - ' + fb_types[ind2])
+        comps.append(fb_types[ind2] + ' - ' + fb_types[ind1])
 
 stats_all_metrics = {}
 p_vals_all_metrics = {}
@@ -63,7 +63,7 @@ for metric_type in metric_types:
         ds = []
         for comp in comps:
             ind1, ind2 = [fb_types.index(fb_type) for fb_type in comp.split(' - ')]
-            z_score, d = eval_z_score(fb_data_points[ind2], fb_data_points[ind1])
+            z_score, d = eval_z_score(fb_data_points[ind1], fb_data_points[ind2])
             stat = STAT_FUN(TRANSFORM_FUN(z_score), d)
             # p = P_VAL_FUN(stat, h0_distribution=h0_distributions_dict[d])
             stats.append(stat)
