@@ -19,7 +19,7 @@ def eval_z_score(data_points1, data_points2):
     return z_score, d
 
 
-def adaptive_neyman_test(z_star, d):
+def adaptive_neyman_test(z_star, d, return_extra=False):
 
     # eval statistic for each number of first blocks (see fomula 6)
     T_an = np.zeros(len(z_star))
@@ -34,10 +34,17 @@ def adaptive_neyman_test(z_star, d):
     loglogn = np.log(np.log(len(z_star)))
 
     stat = (2 * loglogn) ** 0.5 * stat - (2 * loglogn + 0.5 * np.log(loglogn) - 0.5 * np.log(4 * np.pi))
+
+    if return_extra:
+        opt_m = np.argmax(T_an) + 1
+        return stat, opt_m
     return stat
 
-def corrcoef_test(z_star, d):
+
+def corrcoef_test(z_star, d, return_extra=False):
     stat = np.corrcoef(np.arange(len(z_star)), z_star)[0, 1]
+    if return_extra:
+        return stat, None
     return stat
 
 
@@ -51,13 +58,18 @@ def fourier_transform(x):
     return z_star[:len(z_fft)]
 
 
-def legendre_transform(x):
-    n = len(x)
+def legendre_projector(n):
     a = np.arange(n)
     basis = np.zeros((n, n))
     for k in a:
         basis[:, k] = (a - np.mean(a))**k
     q, _ = np.linalg.qr(basis)
+    return q
+
+
+def legendre_transform(x):
+    n = len(x)
+    q = legendre_projector(n)
     return x.dot(q)
 
 

@@ -1,7 +1,7 @@
 from release.settings import FB_ALL
 import pandas as pd
 import numpy as np
-from release.stats.fan98test import eval_z_score, simulate_h0_distribution, get_p_val_one_tailed, adaptive_neyman_test, legendre_transform, identity_transform, corrcoef_test, get_p_val_two_tailed
+from release.stats.fan98test import eval_z_score, simulate_h0_distribution, get_p_val_one_tailed, adaptive_neyman_test, legendre_transform, identity_transform, corrcoef_test, get_p_val_two_tailed, legendre_projector
 import pylab as plt
 import seaborn as sns
 from mne.stats import fdr_correction
@@ -13,6 +13,7 @@ from mne.stats import fdr_correction
 STAT_FUN = adaptive_neyman_test
 TRANSFORM_FUN = legendre_transform
 P_VAL_FUN = get_p_val_one_tailed
+PLOT_Z_SCORE_OPT_PROJ = False
 
 stats_file = 'block_stats_1channels_1bands_median_20ths.pkl'
 stats_df_all = pd.read_pickle('release/data/{}'.format(stats_file))
@@ -40,12 +41,15 @@ for ind1 in range(len(fb_types)):
         comps.append(fb_types[ind2] + ' - ' + fb_types[ind1])
 
 stats_all_metrics = {}
+stats_extra_all_metrics = {}
 p_vals_all_metrics = {}
 z_scores_all_metrics = {}
 metric_types = ['magnitude', 'n_spindles', 'duration', 'amplitude']
 for metric_type in metric_types:
 
     stats_all_th = []
+    stats_extra_all_th = []
+
     z_scores_all_th = []
     for th in (unique_thresholds if metric_type != 'magnitude' else unique_thresholds[:1]):
         stats_df = stats_df_all.query('threshold_factor=={} & metric_type=="{}"'.format(th, metric_type))
@@ -59,17 +63,20 @@ for metric_type in metric_types:
                 data_points[j, :] /= data_points[j, :].mean()
             fb_data_points.append(data_points[:, :])
         stats = []
+        stats_extra = []
         z_scores = []
         ds = []
         for comp in comps:
             ind1, ind2 = [fb_types.index(fb_type) for fb_type in comp.split(' - ')]
             z_score, d = eval_z_score(fb_data_points[ind1], fb_data_points[ind2])
-            stat = STAT_FUN(TRANSFORM_FUN(z_score), d)
+            stat, stat_extra = STAT_FUN(TRANSFORM_FUN(z_score), d, return_extra=True)
             # p = P_VAL_FUN(stat, h0_distribution=h0_distributions_dict[d])
             stats.append(stat)
+            stats_extra.append(stat_extra)
             z_scores.append(z_score)
             ds.append(d)
         stats_all_th.append(stats)
+        stats_extra_all_th.append(stats_extra)
         z_scores_all_th.append(z_scores)
 
 
@@ -80,6 +87,7 @@ for metric_type in metric_types:
     stats_all_metrics[metric_type] = stats_all_th
     p_vals_all_metrics[metric_type] = p_corrected
     z_scores_all_metrics[metric_type] = np.array(z_scores_all_th)
+    stats_extra_all_metrics[metric_type] = np.array(stats_extra_all_th)
 
 
 
@@ -126,17 +134,32 @@ fig, axes = plt.subplots(len(comps), len(metric_types), figsize=(6, 4))
 for j_metric_type, metric_type in enumerate(metric_types):
     p_corrected = p_vals_all_metrics[metric_type]
     z_score = z_scores_all_metrics[metric_type]
+    stats_extra = stats_extra_all_metrics[metric_type]
     min_indexes = np.argmin(p_corrected, 1)
     axes[0, j_metric_type].set_title(metric_type if metric_type != 'magnitude' else 'mag.')
 
     for j_comp, comp in enumerate(comps):
         ax = axes[j_comp, j_metric_type]
         if p_corrected[j_comp,min_indexes[j_comp]] < 0.05:
-            ax.plot(np.arange(len(unique_blocks))+1, z_score[min_indexes[j_comp], j_comp], '.-', markersize=2, linewidth=0.5)
+            best_z_score = z_score[min_indexes[j_comp], j_comp]
+            ax.plot(np.arange(len(unique_blocks))+1, best_z_score, '.-', markersize=2, linewidth=0.5)
+            if PLOT_Z_SCORE_OPT_PROJ:
+                best_m = stats_extra[min_indexes[j_comp], j_comp]
+                q = legendre_projector(len(unique_blocks))
+                proj = best_z_score.dot(q)
+                proj[best_m:] = 0
+                proj = proj.dot(q.T)
+                ax.plot(np.arange(len(unique_blocks)) + 1, proj, '-', markersize=2, linewidth=0.5)
+                ax.text(1, 3, 'm={}'.format(best_m), size=5)
+
+
         else:
             ax.plot(np.nan)
         ax.set_ylim(-5, 5)
-        ax.set_xlim(0.5, 15.5)
+        ax.set_xticks([5, 10, 15])
+        ax.set_xlim(-0, 16)
+        ax.axvline(5, color='k', alpha=0.1, linewidth=0.5)
+        ax.axvline(10, color='k', alpha=0.1, linewidth=0.5)
         if j_comp < len(comps)-1:
             ax.set_xticks([])
         else:
@@ -156,3 +179,48 @@ for j_metric_type, metric_type in enumerate(metric_types):
         # if j_metric_type == 0 :
         #     ax.set_ylabel(comp, rotation=0, labelpad=30, size=8)
 plt.subplots_adjust(left = 0.2, right=0.8, bottom=0.2, top=0.8, hspace=0.01, wspace=0.07)
+
+
+# mut info
+plt.figure()
+from sklearn.feature_selection import mutual_info_regression as mi
+mi_list = []
+for th in unique_thresholds:
+    data = stats_df_all.query('threshold_factor=={}'.format(th))
+    amp = data.query('metric_type=="amplitude"')['metric'].values
+    dur = data.query('metric_type=="duration"')['metric'].values
+    n_s = data.query('metric_type=="n_spindles"')['metric'].values
+    np.hstack((mi(amp[:, None], n_s), mi(n_s[:, None], dur), mi(dur[:, None], amp)))
+
+    mi_list.append(np.hstack((mi(amp[:, None], n_s), mi(n_s[:, None], dur), mi(dur[:, None], amp))))
+
+plt.plot(unique_thresholds, mi_list)
+plt.plot(unique_thresholds, np.mean(mi_list, 1), '--k')
+plt.legend(['n_spin. vs ampl.', 'dur. vs n_spin.', 'ampl vs dur.', 'average mut. inf.'])
+plt.xlabel('threshold factor')
+plt.ylabel('Mutual information')
+plt.scatter(unique_thresholds[np.argmin(np.mean(mi_list, 1))], np.min(np.mean(mi_list, 1)), color='r', zorder=100)
+
+
+# fig, axes = plt.subplots(1, 4, sharex=True, sharey=True)
+# for j, fb_type in enumerate(fb_types[::-1]):
+#     ax = axes[j]
+#     stats_df = stats_df_all.query('fb_type=="{}"'.format(fb_type))
+#     mi_list = []
+#     for th in unique_thresholds:
+#         data = stats_df.query('threshold_factor=={}'.format(th))
+#         amp = data.query('metric_type=="amplitude"')['metric'].values
+#         dur = data.query('metric_type=="duration"')['metric'].values
+#         n_s = data.query('metric_type=="n_spindles"')['metric'].values
+#         np.hstack((mi(amp[:, None], n_s), mi(n_s[:, None], dur), mi(dur[:, None], amp)))
+#
+#         mi_list.append(np.hstack((mi(amp[:, None], n_s), mi(n_s[:, None], dur), mi(dur[:, None], amp))))
+#
+#     ax.plot(unique_thresholds, mi_list)
+#     ax.plot(unique_thresholds, np.mean(mi_list, 1), '--k')
+#     ax.set_title(fb_type)
+#
+#     ax.set_xlabel('threshold factor')
+#     ax.set_ylabel('Mutual information')
+#     ax.scatter(unique_thresholds[np.argmin(np.mean(mi_list, 1))], np.min(np.mean(mi_list, 1)), color='r', zorder=100)
+#     if j == 3: ax.legend(['n_spin. vs ampl.', 'dur. vs n_spin.', 'ampl vs dur.', 'average mut. inf.'])
