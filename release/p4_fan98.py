@@ -5,6 +5,8 @@ from release.stats.fan98test import eval_z_score, simulate_h0_distribution, get_
 import pylab as plt
 import seaborn as sns
 from mne.stats import fdr_correction
+sns.set_context("paper")
+
 
 # STAT_FUN = corrcoef_test
 # TRANSFORM_FUN = identity_transform
@@ -182,7 +184,7 @@ plt.subplots_adjust(left = 0.2, right=0.8, bottom=0.2, top=0.8, hspace=0.01, wsp
 
 
 # mut info
-plt.figure()
+plt.figure(figsize=(4,3))
 from sklearn.feature_selection import mutual_info_regression as mi
 mi_list = []
 for th in unique_thresholds:
@@ -196,11 +198,13 @@ for th in unique_thresholds:
 
 plt.plot(unique_thresholds, mi_list)
 plt.plot(unique_thresholds, np.mean(mi_list, 1), '--k')
-plt.legend(['n_spin. vs ampl.', 'dur. vs n_spin.', 'ampl vs dur.', 'average mut. inf.'])
+plt.legend(['n_spindles - amplitude', 'n_spindles - duration', 'amplitude - duration', 'average MI'])
 plt.xlabel('threshold factor')
 plt.ylabel('Mutual information')
-plt.scatter(unique_thresholds[np.argmin(np.mean(mi_list, 1))], np.min(np.mean(mi_list, 1)), color='r', zorder=100)
-
+plt.scatter(unique_thresholds[np.argmin(np.mean(mi_list, 1))], np.min(np.mean(mi_list, 1)), color='C3', zorder=100)
+plt.plot([unique_thresholds[np.argmin(np.mean(mi_list, 1))]]*2, [0, np.min(np.mean(mi_list, 1))], '--', color='C3', zorder=100)
+plt.ylim(0, plt.ylim()[1])
+plt.tight_layout()
 
 # fig, axes = plt.subplots(1, 4, sharex=True, sharey=True)
 # for j, fb_type in enumerate(fb_types[::-1]):
