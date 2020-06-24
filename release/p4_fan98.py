@@ -5,7 +5,9 @@ from release.stats.fan98test import eval_z_score, simulate_h0_distribution, get_
 import pylab as plt
 import seaborn as sns
 from mne.stats import fdr_correction
+from scipy.stats import t as tdist
 sns.set_context("paper")
+sns.set_style("dark")
 
 
 # STAT_FUN = corrcoef_test
@@ -15,7 +17,7 @@ sns.set_context("paper")
 STAT_FUN = adaptive_neyman_test
 TRANSFORM_FUN = legendre_transform
 P_VAL_FUN = get_p_val_one_tailed
-PLOT_Z_SCORE_OPT_PROJ = False
+PLOT_Z_SCORE_OPT_PROJ = True
 
 stats_file = 'block_stats_1channels_1bands_median_20ths.pkl'
 stats_df_all = pd.read_pickle('release/data/{}'.format(stats_file))
@@ -94,7 +96,7 @@ for metric_type in metric_types:
 
 
 
-sns.set_style("dark")
+# figure: p-val vs threshold vs metric
 fig = plt.figure(constrained_layout=True, figsize=(6, 2.5))
 axes = []
 gs = fig.add_gridspec(1, 7)
@@ -103,7 +105,7 @@ for k in range(3):
     axes.append(fig.add_subplot(gs[k*2+1:k*2+3]))
 
 # p_corrected = p
-xticklabels0 = [th if th % 1. == 0 else '' for th in unique_thresholds]
+xticklabels0 = [th if th % 0.5 == 0 else '' for th in unique_thresholds]
 # fig, axes = plt.subplots(1, len(metric_types))
 for ax, metric_type in zip(axes, metric_types):
     p_corrected = p_vals_all_metrics[metric_type]
@@ -122,37 +124,48 @@ for ax, metric_type in zip(axes, metric_types):
     plt.setp(ax.xaxis.get_majorticklabels(), rotation=90 )
     ax.set_xlabel('th. factor' if metric_type != 'magnitude' else '')
     ax.set_ylim(len(comps), 0)
-    ax.set_title(metric_type if metric_type != 'magnitude' else 'mag.')
+    ax.set_title(metric_type)
 
-    # plt.tight_layout()
+    if metric_type!='magnitude':
+        ax.axvline(12, color='C3', linewidth=1, linestyle='-', alpha=0.5)
+        ax.axvline(13, color='C3', linewidth=1, linestyle='-', alpha=0.5)
+
 cbar_ax.set_yticklabels([0.05, 0.01, 0.001, 0.0001])
 cbar_ax.set_title('p-value\n(FDR)')
+cbar_ax.fill_between([-10, 1], np.log10([0.05] * 2), [0.] * 2, color='#EAEAF2')
 plt.subplots_adjust(left = 0.2, right=0.8, bottom=0.2, top=0.8)
 
 
-from scipy.stats import t as tdist
-fig, axes = plt.subplots(len(comps), len(metric_types), figsize=(6, 4))
 
+# figure z_scores
+fig, axes = plt.subplots(len(comps), len(metric_types), figsize=(6, 4))
+threshold = 2.5
+threshold_index = np.where(unique_thresholds == threshold)[0][0]
 for j_metric_type, metric_type in enumerate(metric_types):
     p_corrected = p_vals_all_metrics[metric_type]
     z_score = z_scores_all_metrics[metric_type]
     stats_extra = stats_extra_all_metrics[metric_type]
-    min_indexes = np.argmin(p_corrected, 1)
-    axes[0, j_metric_type].set_title(metric_type if metric_type != 'magnitude' else 'mag.')
+    th_index = threshold_index if metric_type != 'magnitude' else 0
+    axes[0, j_metric_type].set_title(metric_type)
+
 
     for j_comp, comp in enumerate(comps):
         ax = axes[j_comp, j_metric_type]
-        if p_corrected[j_comp,min_indexes[j_comp]] < 0.05:
-            best_z_score = z_score[min_indexes[j_comp], j_comp]
-            ax.plot(np.arange(len(unique_blocks))+1, best_z_score, '.-', markersize=2, linewidth=0.5)
-            if PLOT_Z_SCORE_OPT_PROJ:
-                best_m = stats_extra[min_indexes[j_comp], j_comp]
-                q = legendre_projector(len(unique_blocks))
-                proj = best_z_score.dot(q)
-                proj[best_m:] = 0
-                proj = proj.dot(q.T)
-                ax.plot(np.arange(len(unique_blocks)) + 1, proj, '-', markersize=2, linewidth=0.5)
-                ax.text(1, 3, 'm={}'.format(best_m), size=5)
+        significant = p_corrected[j_comp, th_index] < 0.05
+        if significant: ax.set_facecolor('#dceaf6')
+
+
+        best_z_score = z_score[th_index, j_comp]
+        ax.plot(np.arange(len(unique_blocks))+1, best_z_score, '.--', markersize=2, linewidth=0.5,
+                color='C0')
+        if PLOT_Z_SCORE_OPT_PROJ:
+            best_m = stats_extra[th_index, j_comp]
+            q = legendre_projector(len(unique_blocks))
+            proj = best_z_score.dot(q)
+            proj[best_m:] = 0
+            proj = proj.dot(q.T)
+            ax.plot(np.arange(len(unique_blocks)) + 1, proj, '-', color='C3' if significant else '#555555', markersize=2, linewidth=0.5)
+            ax.text(1, 3, 'p={:.4f} m={}'.format(p_corrected[j_comp, th_index], best_m), size=5, color='C3' if significant else 'k')
 
 
         else:
@@ -168,9 +181,9 @@ for j_metric_type, metric_type in enumerate(metric_types):
             ax.set_xlabel('block')
 
 
-        ax.axhline(0, color='k', linewidth=0.5, zorder=-100, alpha=0.5)
-        ax.axhline(tdist.ppf(0.975, ds[j_comp]), color='k', linewidth=0.5, zorder=-100, alpha=0.5, linestyle='--')
-        ax.axhline(tdist.ppf(0.025, ds[j_comp]), color='k', linewidth=0.5, zorder=-100, alpha=0.5, linestyle='--')
+        ax.axhline(0, color='k', linewidth=0.5, zorder=-100, alpha=0.3)
+        ax.axhline(tdist.ppf(0.975, ds[j_comp]), color='k', linewidth=0.5, zorder=-100, alpha=0.3, linestyle='--')
+        ax.axhline(tdist.ppf(0.025, ds[j_comp]), color='k', linewidth=0.5, zorder=-100, alpha=0.3, linestyle='--')
 
         if j_metric_type != 0:
             ax.set_yticks([])
@@ -183,7 +196,7 @@ for j_metric_type, metric_type in enumerate(metric_types):
 plt.subplots_adjust(left = 0.2, right=0.8, bottom=0.2, top=0.8, hspace=0.01, wspace=0.07)
 
 
-# mut info
+# figure mut info
 plt.figure(figsize=(4,3))
 from sklearn.feature_selection import mutual_info_regression as mi
 mi_list = []
