@@ -31,6 +31,10 @@ unique_thresholds = stats_df_all['threshold_factor'].unique()
 fb_types = ['FB0', 'FB250', 'FB500', 'FBMock'][::-1]
 stats_df_all = stats_df_all.loc[stats_df_all['fb_type'].isin(fb_types)]
 
+
+threshold = 2.5
+threshold_index = np.where(unique_thresholds == threshold)[0][0]
+
 n_subjects_list = sorted([group['subj_id'].nunique() for name, group in stats_df_all.groupby('fb_type')])
 d_list = np.arange(sum(n_subjects_list[:2]) - 2, sum(n_subjects_list[-2:]) - 2 + 1)
 h0_distributions_dict = {}
@@ -49,7 +53,20 @@ stats_extra_all_metrics = {}
 p_vals_all_metrics = {}
 z_scores_all_metrics = {}
 metric_types = ['magnitude', 'n_spindles', 'duration', 'amplitude']
+
+fig, axes = plt.subplots(2, 2, figsize=(6, 4), sharey=True, sharex=True)
+axes[1, 0].set_xlabel('block'), axes[1, 1].set_xlabel('block')
+axes[0, 0].set_ylabel('metric val.'), axes[1, 0].set_ylabel('metric val.')
+metric_types_ax = {'magnitude': axes[0, 0], 'n_spindles': axes[0, 1], 'duration': axes[1, 0], 'amplitude': axes[1, 1]}
+metric_types_panname = {'magnitude': 'A.', 'n_spindles': 'B.', 'duration': 'C.', 'amplitude': 'D.'}
+fb_typs_colors = {'FB0': 'C0', 'FB250': 'C2', 'FB500': 'C1', 'FBMock': 'C3'}
+
 for metric_type in metric_types:
+    ax = metric_types_ax[metric_type]
+    ax.set_title(metric_types_panname[metric_type]+ ' ' + metric_type, loc='left')
+    ax.set_xlim(0.5, 15.5)
+    ax.axvline(5, color='k', alpha=0.1, linewidth=0.5)
+    ax.axvline(10, color='k', alpha=0.1, linewidth=0.5)
 
     stats_all_th = []
     stats_extra_all_th = []
@@ -66,6 +83,11 @@ for metric_type in metric_types:
                 data_points[j, :] = fb_stats_df.query('subj_id=={}'.format(subj_id))['metric']
                 data_points[j, :] /= data_points[j, :].mean()
             fb_data_points.append(data_points[:, :])
+            if th == threshold or metric_type=='magnitude':
+                ax.errorbar(np.arange(len(unique_blocks))+ 1 -0.2 + ind*0.1, data_points.mean(0),
+                            data_points.std(0)/np.sqrt(data_points.shape[0]), color=fb_typs_colors[fb_type],
+                            linewidth=0.5, elinewidth=1, linestyle='--', marker='o', markersize=2, label=fb_type)
+
         stats = []
         stats_extra = []
         z_scores = []
@@ -93,7 +115,10 @@ for metric_type in metric_types:
     z_scores_all_metrics[metric_type] = np.array(z_scores_all_th)
     stats_extra_all_metrics[metric_type] = np.array(stats_extra_all_th)
 
-
+handles, labels = axes[0,0].get_legend_handles_labels()
+fig.legend(handles[::-1], labels[::-1], loc='right')
+plt.subplots_adjust(hspace=0.300)
+fig.savefig('release/results/2_metric_avg_vs_block.png', dpi=250)
 
 
 # figure: p-val vs threshold vs metric
@@ -134,13 +159,12 @@ cbar_ax.set_yticklabels([0.05, 0.01, 0.001, 0.0001])
 cbar_ax.set_title('p-value\n(FDR)')
 cbar_ax.fill_between([-10, 1], np.log10([0.05] * 2), [0.] * 2, color='#EAEAF2')
 plt.subplots_adjust(left = 0.2, right=0.8, bottom=0.2, top=0.8)
-
+fig.savefig('release/results/4_significance_heatmap.png', dpi=250)
 
 
 # figure z_scores
 fig, axes = plt.subplots(len(comps), len(metric_types), figsize=(6, 4))
-threshold = 2.5
-threshold_index = np.where(unique_thresholds == threshold)[0][0]
+
 for j_metric_type, metric_type in enumerate(metric_types):
     p_corrected = p_vals_all_metrics[metric_type]
     z_score = z_scores_all_metrics[metric_type]
@@ -194,10 +218,10 @@ for j_metric_type, metric_type in enumerate(metric_types):
         # if j_metric_type == 0 :
         #     ax.set_ylabel(comp, rotation=0, labelpad=30, size=8)
 plt.subplots_adjust(left = 0.2, right=0.8, bottom=0.2, top=0.8, hspace=0.01, wspace=0.07)
-
+fig.savefig('release/results/3_t_stats_vs_block.png', dpi=250)
 
 # figure mut info
-plt.figure(figsize=(4,3))
+fig = plt.figure(figsize=(4,3))
 from sklearn.feature_selection import mutual_info_regression as mi
 mi_list = []
 for th in unique_thresholds:
@@ -218,6 +242,7 @@ plt.scatter(unique_thresholds[np.argmin(np.mean(mi_list, 1))], np.min(np.mean(mi
 plt.plot([unique_thresholds[np.argmin(np.mean(mi_list, 1))]]*2, [0, np.min(np.mean(mi_list, 1))], '--', color='C3', zorder=100)
 plt.ylim(0, plt.ylim()[1])
 plt.tight_layout()
+fig.savefig('release/results/1_best_threshold_by_mutual_info.png', dpi=250)
 
 # fig, axes = plt.subplots(1, 4, sharex=True, sharey=True)
 # for j, fb_type in enumerate(fb_types[::-1]):
