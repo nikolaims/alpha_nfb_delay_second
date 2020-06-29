@@ -164,6 +164,19 @@ fig.savefig('release/results/4_significance_heatmap.png', dpi=250)
 
 # figure z_scores
 fig, axes = plt.subplots(len(comps), len(metric_types), figsize=(6, 4))
+fig2, axes2 = plt.subplots(1, 2, figsize=(6, 2), sharey=True)
+axes2[0].set_ylabel('Z-score')
+for ax in axes2:
+    ax.set_xlabel('block')
+    ax.set_ylim(-3, 3)
+    ax.axhline(0, color='k', linewidth=0.5, zorder=-100, alpha=0.3)
+    ax.set_xticks([5, 10, 15])
+    ax.set_xlim(-0, 16)
+    ax.axvline(5, color='k', alpha=0.1, linewidth=0.5)
+    ax.axvline(10, color='k', alpha=0.1, linewidth=0.5)
+
+
+
 
 for j_metric_type, metric_type in enumerate(metric_types):
     p_corrected = p_vals_all_metrics[metric_type]
@@ -176,8 +189,8 @@ for j_metric_type, metric_type in enumerate(metric_types):
     for j_comp, comp in enumerate(comps):
         ax = axes[j_comp, j_metric_type]
         significant = p_corrected[j_comp, th_index] < 0.05
-        if significant: ax.set_facecolor('#dceaf6')
-
+        if significant:
+            ax.set_facecolor('#dceaf6')
 
         best_z_score = z_score[th_index, j_comp]
         ax.plot(np.arange(len(unique_blocks))+1, best_z_score, '.--', markersize=2, linewidth=0.5,
@@ -190,6 +203,15 @@ for j_metric_type, metric_type in enumerate(metric_types):
             proj = proj.dot(q.T)
             ax.plot(np.arange(len(unique_blocks)) + 1, proj, '-', color='C3' if significant else '#555555', markersize=2, linewidth=0.5)
             ax.text(1, 3, 'p={:.4f} m={}'.format(p_corrected[j_comp, th_index], best_m), size=5, color='C3' if significant else 'k')
+            if significant:
+                fb_type1, fb_type2 = comp.split(' - ')
+                if fb_type2 == 'FBMock':
+                    color = fb_typs_colors[fb_type1]
+                else:
+                    color='k'
+                axes2[j_metric_type].plot(np.arange(len(unique_blocks)) + 1, proj, '-.' if color=='k' else '-',
+                                          color=color, alpha=0.7 if color=='k' else 1, label=comp)
+                axes2[j_metric_type].set_title(metric_type)
 
 
         else:
@@ -218,7 +240,12 @@ for j_metric_type, metric_type in enumerate(metric_types):
         # if j_metric_type == 0 :
         #     ax.set_ylabel(comp, rotation=0, labelpad=30, size=8)
 plt.subplots_adjust(left = 0.2, right=0.8, bottom=0.2, top=0.8, hspace=0.01, wspace=0.07)
+
+handles, labels = axes2[0].get_legend_handles_labels()
+fig2.legend(handles, labels, loc='right')
+fig2.subplots_adjust(right=0.75)
 fig.savefig('release/results/3_t_stats_vs_block.png', dpi=250)
+fig2.savefig('release/results/3a_t_stats_vs_block_significant_splines.png', dpi=250)
 
 # figure mut info
 fig = plt.figure(figsize=(4,3))
