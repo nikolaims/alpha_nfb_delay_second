@@ -6,6 +6,7 @@ import pylab as plt
 import seaborn as sns
 from mne.stats import fdr_correction
 from scipy.stats import t as tdist
+from  scipy.stats import pearsonr, linregress
 sns.set_context("paper")
 sns.set_style("dark")
 
@@ -54,20 +55,24 @@ p_vals_all_metrics = {}
 z_scores_all_metrics = {}
 metric_types = ['magnitude', 'n_spindles', 'duration', 'amplitude']
 
-fig, axes = plt.subplots(2, 2, figsize=(6, 4), sharey=True, sharex=True)
-axes[1, 0].set_xlabel('block'), axes[1, 1].set_xlabel('block')
-axes[0, 0].set_ylabel('metric val.'), axes[1, 0].set_ylabel('metric val.')
-metric_types_ax = {'magnitude': axes[0, 0], 'n_spindles': axes[0, 1], 'duration': axes[1, 0], 'amplitude': axes[1, 1]}
-metric_types_panname = {'magnitude': 'A.', 'n_spindles': 'B.', 'duration': 'C.', 'amplitude': 'D.'}
+fig, axes = plt.subplots(1, 4, figsize=(6, 2), sharey=True, sharex=True)
+fig2, axes2 = plt.subplots(3, 4, figsize=(6, 5), sharey='row', sharex=True)
+all_ax = np.concatenate([axes, axes2.ravel()])
+[ax.axvline(5, color='w', linewidth=0.75, zorder=-100) for ax in all_ax]
+[ax.axvline(10, color='w', linewidth=0.75, zorder=-100) for ax in all_ax]
+[ax.axhline(1, color='w', linewidth=0.75, zorder=-100) for ax in all_ax]
+[ax.set_xlabel('block') for ax in np.concatenate([axes, axes2[-1, :]])]
+[ax.set_title(title) for ax, title in zip(axes, fb_types[::-1])]
+[ax.set_title(title) for ax, title in zip(axes2[0, :], fb_types[::-1])]
+fig.subplots_adjust(bottom=0.300, wspace=0.075)
+fig2.subplots_adjust(bottom=2*0.300/5, wspace=0.075)
+
+
+metric_types_ax = {'n_spindles': 0, 'duration': 1, 'amplitude': 2}
+fb_typs_axes = {'FB0': 0, 'FB250': 1, 'FB500': 2, 'FBMock': 3}
 fb_typs_colors = {'FB0': 'C0', 'FB250': 'C2', 'FB500': 'C1', 'FBMock': 'C3'}
 
 for metric_type in metric_types:
-    ax = metric_types_ax[metric_type]
-    ax.set_title(metric_types_panname[metric_type]+ ' ' + metric_type, loc='left')
-    ax.set_xlim(0.5, 15.5)
-    ax.axvline(5, color='k', alpha=0.1, linewidth=0.5)
-    ax.axvline(10, color='k', alpha=0.1, linewidth=0.5)
-
     stats_all_th = []
     stats_extra_all_th = []
 
@@ -83,10 +88,15 @@ for metric_type in metric_types:
                 data_points[j, :] = fb_stats_df.query('subj_id=={}'.format(subj_id))['metric']
                 data_points[j, :] /= data_points[j, :].mean()
             fb_data_points.append(data_points[:, :])
+            ax = (axes[fb_typs_axes[fb_type]]
+                  if metric_type=='magnitude' else axes2[metric_types_ax[metric_type], fb_typs_axes[fb_type]])
             if th == threshold or metric_type=='magnitude':
-                ax.errorbar(np.arange(len(unique_blocks))+ 1 -0.2 + ind*0.1, data_points.mean(0),
-                            data_points.std(0)/np.sqrt(data_points.shape[0]), color=fb_typs_colors[fb_type],
+                ax.errorbar(np.arange(len(unique_blocks)) + 1 - 0.2 + ind * 0.1, data_points.mean(0),
+                            data_points.std(0) / np.sqrt(data_points.shape[0]), color=fb_typs_colors[fb_type],
                             linewidth=0.5, elinewidth=1, linestyle='--', marker='o', markersize=2, label=fb_type)
+                # ax.text(1, 0.8, r'$\rho$={:.2f}, p={:.5f}'.format(
+                #         *pearsonr(np.arange(15)[None, :].repeat(data_points.shape[0], axis=0).ravel(), data_points.ravel())))
+                if fb_typs_axes[fb_type] == 0: ax.set_ylabel(metric_type)
 
         stats = []
         stats_extra = []
@@ -96,7 +106,6 @@ for metric_type in metric_types:
             ind1, ind2 = [fb_types.index(fb_type) for fb_type in comp.split(' - ')]
             z_score, d = eval_z_score(fb_data_points[ind1], fb_data_points[ind2])
             stat, stat_extra = STAT_FUN(TRANSFORM_FUN(z_score), d, return_extra=True)
-            # p = P_VAL_FUN(stat, h0_distribution=h0_distributions_dict[d])
             stats.append(stat)
             stats_extra.append(stat_extra)
             z_scores.append(z_score)
@@ -115,10 +124,16 @@ for metric_type in metric_types:
     z_scores_all_metrics[metric_type] = np.array(z_scores_all_th)
     stats_extra_all_metrics[metric_type] = np.array(stats_extra_all_th)
 
-handles, labels = axes[0,0].get_legend_handles_labels()
-fig.legend(handles[::-1], labels[::-1], loc='right')
-plt.subplots_adjust(hspace=0.300)
-fig.savefig('release/results/2_metric_avg_vs_block.png', dpi=250)
+
+axes2[0, 0].set_ylim(0.3, 1.7)
+axes2[0, 0].set_yticks([0.4, 1., 1.6])
+axes2[1, 0].set_ylim(0.6, 1.4)
+axes2[1, 0].set_yticks([0.7, 1., 1.3])
+axes2[2, 0].set_ylim(0.85, 1.15)
+axes2[2, 0].set_yticks([0.9, 1., 1.1])
+
+fig.savefig('release/results/2a_magnitude_avg_vs_block.png', dpi=250)
+fig2.savefig('release/results/2b_metric_avg_vs_block.png', dpi=250)
 
 
 # figure: p-val vs threshold vs metric
@@ -219,17 +234,20 @@ for j_metric_type, metric_type in enumerate(metric_types):
         ax.set_ylim(-5, 5)
         ax.set_xticks([5, 10, 15])
         ax.set_xlim(-0, 16)
-        ax.axvline(5, color='k', alpha=0.1, linewidth=0.5)
-        ax.axvline(10, color='k', alpha=0.1, linewidth=0.5)
+        ax.axvline(5, color='w', zorder=-100, linewidth=0.75)
+        ax.axvline(10, color='w', zorder=-100, linewidth=0.75)
+        ax.axhline(0, color='w', zorder=-100, linewidth=0.75)
+        ax.axhline(tdist.ppf(0.975, ds[j_comp]), color='w', zorder=-100, linestyle='--', linewidth=0.75)
+        ax.axhline(tdist.ppf(0.025, ds[j_comp]), color='w', zorder=-100, linestyle='--', linewidth=0.75)
+
         if j_comp < len(comps)-1:
             ax.set_xticks([])
         else:
             ax.set_xlabel('block')
 
 
-        ax.axhline(0, color='k', linewidth=0.5, zorder=-100, alpha=0.3)
-        ax.axhline(tdist.ppf(0.975, ds[j_comp]), color='k', linewidth=0.5, zorder=-100, alpha=0.3, linestyle='--')
-        ax.axhline(tdist.ppf(0.025, ds[j_comp]), color='k', linewidth=0.5, zorder=-100, alpha=0.3, linestyle='--')
+
+
 
         if j_metric_type != 0:
             ax.set_yticks([])
