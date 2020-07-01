@@ -6,7 +6,7 @@ import pylab as plt
 import seaborn as sns
 from mne.stats import fdr_correction
 from scipy.stats import t as tdist
-from  scipy.stats import pearsonr, linregress
+from  scipy.stats import shapiro
 sns.set_context("paper")
 sns.set_style("dark")
 
@@ -74,6 +74,8 @@ fb_typs_colors = {'FB0': 'C0', 'FB250': 'C2', 'FB500': 'C1', 'FBMock': 'C3'}
 
 metrics_df = pd.DataFrame(columns=['subj_id', 'fb_type', 'k', 'metric_type', 'metric'])
 
+shapiro_p_vals = []
+shapiro_names = []
 for metric_type in metric_types:
     stats_all_th = []
     stats_extra_all_th = []
@@ -93,6 +95,10 @@ for metric_type in metric_types:
                     metrics_df = metrics_df.append(pd.DataFrame(
                         {'subj_id': subj_id, 'fb_type': fb_type, 'k': np.arange(len(unique_blocks)),
                          'metric_type': metric_type, 'metric': data_points[j,:]}))
+            # if th == threshold or metric_type == 'magnitude':
+            shapiro_p_vals.append([shapiro(x)[1] for x in data_points.T])
+            shapiro_names.append(['{} {} {} {}'.format(metric_type, fb_type, k, th) for k in range(1, 16)])
+
             fb_data_points.append(data_points[:, :])
             ax = (axes[fb_typs_axes[fb_type]]
                   if metric_type=='magnitude' else axes2[metric_types_ax[metric_type], fb_typs_axes[fb_type]])
@@ -130,6 +136,12 @@ for metric_type in metric_types:
     z_scores_all_metrics[metric_type] = np.array(z_scores_all_th)
     stats_extra_all_metrics[metric_type] = np.array(stats_extra_all_th)
 
+# print not-normal samples
+shapiro_p_vals = np.array(shapiro_p_vals).ravel()
+fdr_p_shapiro = fdr_correction(shapiro_p_vals)
+shapiro_names = np.array(shapiro_names).ravel()
+print('FDR shapiro', shapiro_names[fdr_p_shapiro[0]])
+print('Bonferroni shapiro', shapiro_names[shapiro_p_vals < 0.05/len(shapiro_p_vals)])
 
 axes2[0, 0].set_ylim(0.3, 1.7)
 axes2[0, 0].set_yticks([0.4, 1., 1.6])
