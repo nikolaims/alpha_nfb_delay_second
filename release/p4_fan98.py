@@ -72,6 +72,8 @@ metric_types_ax = {'n_spindles': 0, 'duration': 1, 'amplitude': 2}
 fb_typs_axes = {'FB0': 0, 'FB250': 1, 'FB500': 2, 'FBMock': 3}
 fb_typs_colors = {'FB0': 'C0', 'FB250': 'C2', 'FB500': 'C1', 'FBMock': 'C3'}
 
+metrics_df = pd.DataFrame(columns=['subj_id', 'fb_type', 'k', 'metric_type', 'metric'])
+
 for metric_type in metric_types:
     stats_all_th = []
     stats_extra_all_th = []
@@ -87,6 +89,10 @@ for metric_type in metric_types:
             for j, subj_id in enumerate(unique_subj):
                 data_points[j, :] = fb_stats_df.query('subj_id=={}'.format(subj_id))['metric']
                 data_points[j, :] /= data_points[j, :].mean()
+                if th == threshold or metric_type == 'magnitude':
+                    metrics_df = metrics_df.append(pd.DataFrame(
+                        {'subj_id': subj_id, 'fb_type': fb_type, 'k': np.arange(len(unique_blocks)),
+                         'metric_type': metric_type, 'metric': data_points[j,:]}))
             fb_data_points.append(data_points[:, :])
             ax = (axes[fb_typs_axes[fb_type]]
                   if metric_type=='magnitude' else axes2[metric_types_ax[metric_type], fb_typs_axes[fb_type]])
