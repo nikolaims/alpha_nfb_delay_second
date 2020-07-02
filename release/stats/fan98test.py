@@ -19,6 +19,29 @@ def eval_z_score(data_points1, data_points2):
     return z_score, d
 
 
+def eval_f_stat(data_points):
+    n_all_sample = sum([group_data[:, 0].size for group_data in data_points])
+    n_groups = len(data_points)
+    n_blocks = data_points[0].shape[1]
+    n_subjects_list  = [data_points[k].shape[0] for k in range(n_groups)]
+    n_subjects = sum(n_subjects_list)
+    f_stats_list = []
+    for b in range(n_blocks):
+        data = [group_data[:, b] for group_data in data_points]
+
+        overall_mean = sum([group_data.sum() for group_data in data])/n_subjects
+        group_means_list = [group_data.mean() for group_data in data]
+        between_group_var = sum([n * (group_mean - overall_mean) ** 2
+                                 for n, group_mean in zip(n_subjects_list, group_means_list)]) / (n_groups - 1)
+        within_group_var = sum([np.sum((group_data - group_mean)**2)
+                            for group_data, group_mean in zip(data, group_means_list)]) / (n_all_sample - n_groups)
+        f_stat = between_group_var /(within_group_var + 1e-10)
+        f_stats_list.append(f_stat)
+    d1 = n_groups - 1
+    d2 = n_all_sample - n_groups
+    return f_stats_list, d1, d2
+
+
 def adaptive_neyman_test(z_star, d, return_extra=False):
 
     # eval statistic for each number of first blocks (see fomula 6)
