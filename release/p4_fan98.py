@@ -36,13 +36,6 @@ stats_df_all = stats_df_all.loc[stats_df_all['fb_type'].isin(fb_types)]
 threshold = 2.5
 threshold_index = np.where(unique_thresholds == threshold)[0][0]
 
-n_subjects_list = sorted([group['subj_id'].nunique() for name, group in stats_df_all.groupby('fb_type')])
-d_list = np.arange(sum(n_subjects_list[:2]) - 2, sum(n_subjects_list[-2:]) - 2 + 1)
-h0_distributions_dict = {}
-for d in d_list:
-    h0_distributions_dict[d] = simulate_h0_distribution(n=len(unique_blocks), d=d,
-                                                        transform=TRANSFORM_FUN, stat_fun=STAT_FUN, verbose=True)
-
 
 comps = []
 for ind1 in range(len(fb_types)):
@@ -78,6 +71,7 @@ shapiro_p_vals = []
 shapiro_names = []
 for metric_type in metric_types:
     stats_all_th = []
+    p_all_th = []
     stats_extra_all_th = []
 
     z_scores_all_th = []
@@ -114,23 +108,26 @@ for metric_type in metric_types:
         stats_extra = []
         z_scores = []
         ds = []
+        ps = []
         for comp in comps:
             ind1, ind2 = [fb_types.index(fb_type) for fb_type in comp.split(' - ')]
             z_score, d = eval_z_score(fb_data_points[ind1], fb_data_points[ind2])
             stat, stat_extra = STAT_FUN(TRANSFORM_FUN(z_score), d, return_extra=True)
+            h0_distribution = simulate_h0_distribution(n=len(unique_blocks), d=d, transform=TRANSFORM_FUN,
+                                                       stat_fun=STAT_FUN, verbose=False, sim_verbose=True)
+            ps.append(P_VAL_FUN(stat, h0_distribution))
             stats.append(stat)
             stats_extra.append(stat_extra)
             z_scores.append(z_score)
             ds.append(d)
         stats_all_th.append(stats)
+        p_all_th.append(ps)
         stats_extra_all_th.append(stats_extra)
         z_scores_all_th.append(z_scores)
 
 
     stats_all_th = np.array(stats_all_th).T
-    get_p_val_vec = np.vectorize(lambda x: P_VAL_FUN(x, h0_distributions_dict[d]))
-    p = get_p_val_vec(stats_all_th)
-    _, p_corrected = fdr_correction(p)
+    _, p_corrected = fdr_correction(np.array(p_all_th).T)
     stats_all_metrics[metric_type] = stats_all_th
     p_vals_all_metrics[metric_type] = p_corrected
     z_scores_all_metrics[metric_type] = np.array(z_scores_all_th)

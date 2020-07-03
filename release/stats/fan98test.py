@@ -100,7 +100,7 @@ def identity_transform(x):
     return x
 
 
-def simulate_h0_distribution(n, d, transform, stat_fun, n_iter=200000, verbose=True):
+def simulate_h0_distribution(n, d, transform, stat_fun, n_iter=200000, verbose=True, sim_verbose=False):
     cash_dir = '_fan98_temp'
     cash_file = os.path.join(cash_dir, 'h0_{}_{}_n{}_d{}_n_iter{}.npy'
                                        .format(stat_fun.__name__, transform.__name__, n, d, n_iter))
@@ -109,7 +109,7 @@ def simulate_h0_distribution(n, d, transform, stat_fun, n_iter=200000, verbose=T
             print('Load from {}'.format(cash_file))
         stats_h0 = np.load(cash_file)
     else:
-        if verbose:
+        if verbose or sim_verbose:
             print('Simulate and save to {}'.format(cash_file))
         stats_h0 = np.zeros(n_iter)
         for k in range(n_iter):
