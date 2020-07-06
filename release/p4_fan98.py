@@ -203,7 +203,7 @@ fig.savefig('release/results/4_significance_heatmap.png', dpi=250)
 # figure z_scores
 
 comps_colors = ['C0', 'C2', 'C1', 'C5', 'C4', 'C6']
-fig, axes = plt.subplots(len(comps) + 1, len(metric_types), figsize=(6, 4))
+fig, axes = plt.subplots(len(comps) + 1, len(metric_types), figsize=(6, 6))
 
 for ax in axes.ravel():
     ax.set_ylim(-5, 5)
@@ -217,6 +217,9 @@ for ax in axes.ravel():
 for ax in axes[-1, :]:
     ax.set_xlabel('block')
     ax.set_ylim(-3, 3)
+
+axes[-1, 0].set_yticks([1])
+axes[-1, 0].set_yticklabels(['Difference\nsplines'])
 
 
 for j_metric_type, metric_type in enumerate(metric_types):
@@ -242,10 +245,13 @@ for j_metric_type, metric_type in enumerate(metric_types):
             proj = best_z_score.dot(q)
             proj[best_m:] = 0
             proj = proj.dot(q.T)
-            ax.plot(np.arange(len(unique_blocks)) + 1, proj,  color=comps_colors[j_comp] if significant else 'k', markersize=2, linewidth=0.7, linestyle='-' if significant else '--')
-            ax.text(1, 3, 'p={:.4f} m={}'.format(p_corrected[j_comp, th_index], best_m), size=5, color='C3' if significant else 'k')
+            ax.plot(np.arange(len(unique_blocks)) + 1, proj,  color=comps_colors[j_comp] if significant else 'k',
+                    markersize=2, linewidth=0.7 if significant else 0.5, linestyle='-' if significant else '--', alpha=1 if significant else 0.4)
+            ax.text(1, 3, 'p={:.4f} m={}'.format(p_corrected[j_comp, th_index], best_m), size=5,
+                    color='C3' if significant else 'k')
             if significant:
-                axes[-1, j_metric_type].plot(np.arange(len(unique_blocks)) + 1, proj+0.3*(j_comp==1), color=comps_colors[j_comp], label=comps_colors[j_comp], linewidth=0.7)
+                axes[-1, j_metric_type].plot(np.arange(len(unique_blocks)) + 1, proj+0.3*(j_comp==1),
+                                             color=comps_colors[j_comp], label=comps_colors[j_comp], linewidth=0.7)
 
 
         else:
@@ -266,7 +272,7 @@ for j_metric_type, metric_type in enumerate(metric_types):
             ax.set_yticklabels([comp])
         # if j_metric_type == 0 :
         #     ax.set_ylabel(comp, rotation=0, labelpad=30, size=8)
-plt.subplots_adjust(left = 0.2, right=0.9, bottom=0.2, top=0.8, hspace=0.01, wspace=0.07)
+plt.subplots_adjust(left = 0.2, right=0.9, bottom=0.1, top=0.9, hspace=0.01, wspace=0.07)
 
 fig.savefig('release/results/3_t_stats_vs_block.png', dpi=250)
 # fig2.savefig('release/results/3a_t_stats_vs_block_significant_splines.png', dpi=250)
