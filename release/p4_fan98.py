@@ -7,6 +7,7 @@ import seaborn as sns
 from mne.stats import fdr_correction
 from scipy.stats import t as tdist
 from  scipy.stats import shapiro
+from pingouin import rm_corr
 sns.set_context("paper")
 sns.set_style("dark")
 
@@ -48,8 +49,8 @@ p_vals_all_metrics = {}
 z_scores_all_metrics = {}
 metric_types = ['magnitude', 'n_spindles', 'duration', 'amplitude']
 
-fig, axes = plt.subplots(1, 4, figsize=(6, 2), sharey=True, sharex=True)
-fig2, axes2 = plt.subplots(3, 4, figsize=(6, 5), sharey='row', sharex=True)
+fig, axes = plt.subplots(1, 4, figsize=(6, 3), sharey=True, sharex=True)
+fig2, axes2 = plt.subplots(3, 4, figsize=(6, 7), sharey='row', sharex=True)
 all_ax = np.concatenate([axes, axes2.ravel()])
 [ax.axvline(5, color='w', linewidth=0.75, zorder=-100) for ax in all_ax]
 [ax.axvline(10, color='w', linewidth=0.75, zorder=-100) for ax in all_ax]
@@ -64,6 +65,8 @@ fig2.subplots_adjust(bottom=2*0.300/5, wspace=0.075)
 metric_types_ax = {'n_spindles': 0, 'duration': 1, 'amplitude': 2}
 fb_typs_axes = {'FB0': 0, 'FB250': 1, 'FB500': 2, 'FBMock': 3}
 fb_typs_colors = {'FB0': 'C0', 'FB250': 'C2', 'FB500': 'C1', 'FBMock': 'C3'}
+metric_types_lims = {'magnitude': np.array([0.65, 1.35]), 'n_spindles': np.array([0.1, 1.9]),
+                     'duration': np.array([0.3, 1.7]), 'amplitude': np.array([0.7, 1.30])}
 
 metrics_df = pd.DataFrame(columns=['subj_id', 'fb_type', 'k', 'metric_type', 'metric'])
 
@@ -97,12 +100,24 @@ for metric_type in metric_types:
             ax = (axes[fb_typs_axes[fb_type]]
                   if metric_type=='magnitude' else axes2[metric_types_ax[metric_type], fb_typs_axes[fb_type]])
             if th == threshold or metric_type=='magnitude':
-                ax.errorbar(np.arange(len(unique_blocks)) + 1 - 0.2 + ind * 0.1, data_points.mean(0),
-                            data_points.std(0) / np.sqrt(data_points.shape[0]), color=fb_typs_colors[fb_type],
-                            linewidth=0.5, elinewidth=1, linestyle='--', marker='o', markersize=2, label=fb_type)
-                # ax.text(1, 0.8, r'$\rho$={:.2f}, p={:.5f}'.format(
-                #         *pearsonr(np.arange(15)[None, :].repeat(data_points.shape[0], axis=0).ravel(), data_points.ravel())))
+                ax.errorbar(np.arange(len(unique_blocks))+1, data_points.mean(0),
+                            2*data_points.std(0) / np.sqrt(data_points.shape[0]), color=fb_typs_colors[fb_type],
+                            linewidth=0.75, elinewidth=0.75, linestyle='', marker='o', markersize=2, label=fb_type, zorder=100)
+                ax.plot(np.arange(len(unique_blocks))+1, data_points.T, color=fb_typs_colors[fb_type],
+                        linewidth=0.5, linestyle='-', markersize=2, label=fb_type, alpha=0.25)
+
+                df = metrics_df.query('metric_type=="{}" & fb_type=="{}"'.format(metric_type, fb_type))
+                df['k'] = df['k'].astype(int)
+                s = r'$\rho_{CI95}$=' + rm_corr(df, 'k', 'metric', 'subj_id')['CI95%'].values[0]
+
+                lim = metric_types_lims[metric_type]
+                ax.text(1, lim[0] + (lim[1]-lim[0])*0.9, s, size=7)
                 if fb_typs_axes[fb_type] == 0: ax.set_ylabel(metric_type)
+
+
+                ax.set_ylim(*lim)
+                ax.set_yticks([lim[0], 1., lim[1]])
+
 
         stats = []
         stats_extra = []
@@ -139,13 +154,6 @@ fdr_p_shapiro = fdr_correction(shapiro_p_vals)
 shapiro_names = np.array(shapiro_names).ravel()
 print('FDR shapiro', shapiro_names[fdr_p_shapiro[0]])
 print('Bonferroni shapiro', shapiro_names[shapiro_p_vals < 0.05/len(shapiro_p_vals)])
-
-axes2[0, 0].set_ylim(0.3, 1.7)
-axes2[0, 0].set_yticks([0.4, 1., 1.6])
-axes2[1, 0].set_ylim(0.6, 1.4)
-axes2[1, 0].set_yticks([0.7, 1., 1.3])
-axes2[2, 0].set_ylim(0.85, 1.15)
-axes2[2, 0].set_yticks([0.9, 1., 1.1])
 
 fig.savefig('release/results/2a_magnitude_avg_vs_block.png', dpi=250)
 fig2.savefig('release/results/2b_metric_avg_vs_block.png', dpi=250)
@@ -193,19 +201,22 @@ fig.savefig('release/results/4_significance_heatmap.png', dpi=250)
 
 
 # figure z_scores
-fig, axes = plt.subplots(len(comps), len(metric_types), figsize=(6, 4))
-fig2, axes2 = plt.subplots(1, 2, figsize=(6, 2), sharey=True)
-axes2[0].set_ylabel('Z-score')
-for ax in axes2:
-    ax.set_xlabel('block')
-    ax.set_ylim(-3, 3)
-    ax.axhline(0, color='k', linewidth=0.5, zorder=-100, alpha=0.3)
+
+comps_colors = ['C0', 'C2', 'C1', 'C5', 'C4', 'C6']
+fig, axes = plt.subplots(len(comps) + 1, len(metric_types), figsize=(6, 4))
+
+for ax in axes.ravel():
+    ax.set_ylim(-5, 5)
     ax.set_xticks([5, 10, 15])
     ax.set_xlim(-0, 16)
-    ax.axvline(5, color='k', alpha=0.1, linewidth=0.5)
-    ax.axvline(10, color='k', alpha=0.1, linewidth=0.5)
+    ax.axvline(5, color='w', zorder=-100, linewidth=0.75)
+    ax.axvline(10, color='w', zorder=-100, linewidth=0.75)
+    ax.axhline(0, color='w', zorder=-100, linewidth=0.75)
+    ax.set_yticks([])
 
-
+for ax in axes[-1, :]:
+    ax.set_xlabel('block')
+    ax.set_ylim(-3, 3)
 
 
 for j_metric_type, metric_type in enumerate(metric_types):
@@ -220,65 +231,45 @@ for j_metric_type, metric_type in enumerate(metric_types):
         ax = axes[j_comp, j_metric_type]
         significant = p_corrected[j_comp, th_index] < 0.05
         if significant:
-            ax.set_facecolor('#dceaf6')
+            ax.set_facecolor('#f0e7e7')
 
         best_z_score = z_score[th_index, j_comp]
-        ax.plot(np.arange(len(unique_blocks))+1, best_z_score, '.--', markersize=2, linewidth=0.5,
-                color='C0')
+        ax.plot(np.arange(len(unique_blocks))+1, best_z_score, 'o', markersize=1, linewidth=0.5,
+                color=comps_colors[j_comp], zorder=1000)
         if PLOT_Z_SCORE_OPT_PROJ:
             best_m = stats_extra[th_index, j_comp]
             q = legendre_projector(len(unique_blocks))
             proj = best_z_score.dot(q)
             proj[best_m:] = 0
             proj = proj.dot(q.T)
-            ax.plot(np.arange(len(unique_blocks)) + 1, proj, '-', color='C3' if significant else '#555555', markersize=2, linewidth=0.5)
+            ax.plot(np.arange(len(unique_blocks)) + 1, proj,  color=comps_colors[j_comp] if significant else 'k', markersize=2, linewidth=0.7, linestyle='-' if significant else '--')
             ax.text(1, 3, 'p={:.4f} m={}'.format(p_corrected[j_comp, th_index], best_m), size=5, color='C3' if significant else 'k')
             if significant:
-                fb_type1, fb_type2 = comp.split(' - ')
-                if fb_type2 == 'FBMock':
-                    color = fb_typs_colors[fb_type1]
-                else:
-                    color='k'
-                axes2[j_metric_type].plot(np.arange(len(unique_blocks)) + 1, proj, '-.' if color=='k' else '-',
-                                          color=color, alpha=0.7 if color=='k' else 1, label=comp)
-                axes2[j_metric_type].set_title(metric_type)
+                axes[-1, j_metric_type].plot(np.arange(len(unique_blocks)) + 1, proj+0.3*(j_comp==1), color=comps_colors[j_comp], label=comps_colors[j_comp], linewidth=0.7)
 
 
         else:
             ax.plot(np.nan)
-        ax.set_ylim(-5, 5)
-        ax.set_xticks([5, 10, 15])
-        ax.set_xlim(-0, 16)
-        ax.axvline(5, color='w', zorder=-100, linewidth=0.75)
-        ax.axvline(10, color='w', zorder=-100, linewidth=0.75)
-        ax.axhline(0, color='w', zorder=-100, linewidth=0.75)
+
         ax.axhline(tdist.ppf(0.975, ds[j_comp]), color='w', zorder=-100, linestyle='--', linewidth=0.75)
         ax.axhline(tdist.ppf(0.025, ds[j_comp]), color='w', zorder=-100, linestyle='--', linewidth=0.75)
 
-        if j_comp < len(comps)-1:
-            ax.set_xticks([])
-        else:
-            ax.set_xlabel('block')
+        ax.set_xticks([])
 
 
 
 
 
-        if j_metric_type != 0:
-            ax.set_yticks([])
-        else:
-            # ax.yaxis.tick_right()
+
+        if j_metric_type == 0:
             ax.set_yticks([0])
             ax.set_yticklabels([comp])
         # if j_metric_type == 0 :
         #     ax.set_ylabel(comp, rotation=0, labelpad=30, size=8)
-plt.subplots_adjust(left = 0.2, right=0.8, bottom=0.2, top=0.8, hspace=0.01, wspace=0.07)
+plt.subplots_adjust(left = 0.2, right=0.9, bottom=0.2, top=0.8, hspace=0.01, wspace=0.07)
 
-handles, labels = axes2[0].get_legend_handles_labels()
-fig2.legend(handles, labels, loc='right')
-fig2.subplots_adjust(right=0.75)
 fig.savefig('release/results/3_t_stats_vs_block.png', dpi=250)
-fig2.savefig('release/results/3a_t_stats_vs_block_significant_splines.png', dpi=250)
+# fig2.savefig('release/results/3a_t_stats_vs_block_significant_splines.png', dpi=250)
 
 # figure mut info
 fig = plt.figure(figsize=(4,3))
@@ -296,7 +287,7 @@ for th in unique_thresholds:
 plt.plot(unique_thresholds, mi_list)
 plt.plot(unique_thresholds, np.mean(mi_list, 1), '--k')
 plt.legend(['n_spindles - amplitude', 'n_spindles - duration', 'amplitude - duration', 'average MI'])
-plt.xlabel('threshold factor')
+plt.xlabel('Threshold factor, $\mu$')
 plt.ylabel('Mutual information')
 plt.scatter(unique_thresholds[np.argmin(np.mean(mi_list, 1))], np.min(np.mean(mi_list, 1)), color='C3', zorder=100)
 plt.plot([unique_thresholds[np.argmin(np.mean(mi_list, 1))]]*2, [0, np.min(np.mean(mi_list, 1))], '--', color='C3', zorder=100)
