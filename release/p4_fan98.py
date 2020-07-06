@@ -10,6 +10,7 @@ from  scipy.stats import shapiro
 from pingouin import rm_corr
 sns.set_context("paper")
 sns.set_style("dark")
+# sns.set_style("dark", {"axes.facecolor": ".9"})
 
 
 # STAT_FUN = corrcoef_test
@@ -204,8 +205,9 @@ fig.savefig('release/results/4_significance_heatmap.png', dpi=250)
 
 comps_colors = ['C0', 'C2', 'C1', 'C5', 'C4', 'C6']
 fig, axes = plt.subplots(len(comps) + 1, len(metric_types), figsize=(6, 6))
+fig2, axes2 = plt.subplots(3, 3, figsize=(5, 4))
 
-for ax in axes.ravel():
+for ax in np.concatenate([axes.ravel(), axes2.ravel()]):
     ax.set_ylim(-5, 5)
     ax.set_xticks([5, 10, 15])
     ax.set_xlim(-0, 16)
@@ -214,7 +216,7 @@ for ax in axes.ravel():
     ax.axhline(0, color='w', zorder=-100, linewidth=0.75)
     ax.set_yticks([])
 
-for ax in axes[-1, :]:
+for ax in np.concatenate([axes[-1, :], axes2[:, -1]]):
     ax.set_xlabel('block')
     ax.set_ylim(-3, 3)
 
@@ -231,50 +233,67 @@ for j_metric_type, metric_type in enumerate(metric_types):
 
 
     for j_comp, comp in enumerate(comps):
-        ax = axes[j_comp, j_metric_type]
-        significant = p_corrected[j_comp, th_index] < 0.05
-        if significant:
-            ax.set_facecolor('#f0e7e7')
-
-        best_z_score = z_score[th_index, j_comp]
-        ax.plot(np.arange(len(unique_blocks))+1, best_z_score, 'o', markersize=1, linewidth=0.5,
-                color=comps_colors[j_comp], zorder=1000)
-        if PLOT_Z_SCORE_OPT_PROJ:
-            best_m = stats_extra[th_index, j_comp]
-            q = legendre_projector(len(unique_blocks))
-            proj = best_z_score.dot(q)
-            proj[best_m:] = 0
-            proj = proj.dot(q.T)
-            ax.plot(np.arange(len(unique_blocks)) + 1, proj,  color=comps_colors[j_comp] if significant else 'k',
-                    markersize=2, linewidth=0.7 if significant else 0.5, linestyle='-' if significant else '--', alpha=1 if significant else 0.4)
-            ax.text(1, 3, 'p={:.4f} m={}'.format(p_corrected[j_comp, th_index], best_m), size=5,
-                    color='C3' if significant else 'k')
+        ax_list = [axes[j_comp, j_metric_type]] + ([axes2[j_comp%3, j_comp//3]] if metric_type =='magnitude' else [])
+        for ax in ax_list:
+            significant = p_corrected[j_comp, th_index] < 0.05
             if significant:
-                axes[-1, j_metric_type].plot(np.arange(len(unique_blocks)) + 1, proj+0.3*(j_comp==1),
-                                             color=comps_colors[j_comp], label=comps_colors[j_comp], linewidth=0.7)
+                ax.set_facecolor('#eee9e9')
+
+            best_z_score = z_score[th_index, j_comp]
+            ax.plot(np.arange(len(unique_blocks))+1, best_z_score, 'o', markersize=1, linewidth=0.5,
+                    color=comps_colors[j_comp], zorder=1000)
+
+            if PLOT_Z_SCORE_OPT_PROJ:
+                best_m = stats_extra[th_index, j_comp]
+                q = legendre_projector(len(unique_blocks))
+                proj = best_z_score.dot(q)
+                proj[best_m:] = 0
+                proj = proj.dot(q.T)
+                ax.plot(np.arange(len(unique_blocks)) + 1, proj,  color=comps_colors[j_comp] if significant else 'k',
+                        markersize=2, linewidth=0.7 if significant else 0.5, linestyle='-' if significant else '--', alpha=1 if significant else 0.4)
+                ax.text(1, 3, 'p={:.4f} m={}'.format(p_corrected[j_comp, th_index], best_m), size=5,
+                        color='C3' if significant else 'k')
+                if significant:
+                    ax2_list = [axes[-1, j_metric_type]] + ([axes2[1, 2]] if metric_type=='magnitude' else [])
+                    for ax2 in ax2_list:
+                        ax2.plot(np.arange(len(unique_blocks)) + 1, proj+0.3*(j_comp==1),
+                                                     color=comps_colors[j_comp], label=comps_colors[j_comp], linewidth=0.7)
 
 
-        else:
-            ax.plot(np.nan)
+            else:
+                ax.plot(np.nan)
 
-        ax.axhline(tdist.ppf(0.975, ds[j_comp]), color='w', zorder=-100, linestyle='--', linewidth=0.75)
-        ax.axhline(tdist.ppf(0.025, ds[j_comp]), color='w', zorder=-100, linestyle='--', linewidth=0.75)
+            ax.axhline(tdist.ppf(0.975, ds[j_comp]), color='w', zorder=-100, linestyle='--', linewidth=0.75)
+            ax.axhline(tdist.ppf(0.025, ds[j_comp]), color='w', zorder=-100, linestyle='--', linewidth=0.75)
 
-        ax.set_xticks([])
-
-
+            ax.set_xticks([])
 
 
 
 
-        if j_metric_type == 0:
-            ax.set_yticks([0])
-            ax.set_yticklabels([comp])
-        # if j_metric_type == 0 :
-        #     ax.set_ylabel(comp, rotation=0, labelpad=30, size=8)
-plt.subplots_adjust(left = 0.2, right=0.9, bottom=0.1, top=0.9, hspace=0.01, wspace=0.07)
+
+
+            if j_metric_type == 0:
+                ax.set_yticks([0])
+                ax.set_yticklabels([comp])
+            # if j_metric_type == 0 :
+            #     ax.set_ylabel(comp, rotation=0, labelpad=30, size=8)
+fig.subplots_adjust(left = 0.2, right=0.9, bottom=0.1, top=0.9, hspace=0.01, wspace=0.07)
+
+for comp, ax in zip(comps, axes2[:, :2].T.ravel()):
+    ax.set_yticks([])
+    ax.set_title(comp)
+axes2[0, 2].axis('off')
+axes2[2, 2].axis('off')
+axes2[1, 2].set_title('Difference splines')
+for ax in [axes2[-1, 0], axes2[-1, 1]]:
+    ax.set_xticks([5, 10, 15])
+    ax.set_xlabel('block')
+
+fig2.subplots_adjust(left = 0.1, right=0.9, bottom=0.1, top=0.9, hspace=0.3, wspace=0.1)
 
 fig.savefig('release/results/3_t_stats_vs_block.png', dpi=250)
+fig2.savefig('release/results/3b_t_stats_vs_block_magnitude.png', dpi=250)
 # fig2.savefig('release/results/3a_t_stats_vs_block_significant_splines.png', dpi=250)
 
 # figure mut info
