@@ -1,7 +1,7 @@
 from release.settings import FB_ALL, BASELINE_BEFORE, BASELINE_AFTER
 import pandas as pd
 import seaborn as sns
-from pingouin import rm_corr, mixed_anova, pairwise_ttests, rm_anova, plot_paired, friedman, anova
+from pingouin import rm_corr, mixed_anova, pairwise_ttests, rm_anova, plot_paired, friedman, anova, ttest
 import pylab as plt
 import numpy as np
 from mne.stats import fdr_correction
@@ -29,7 +29,7 @@ res = mixed_anova(stats_df_all.query('metric_type=="{}"'.format(metric_type)), d
 res2 = pairwise_ttests(stats_df_all.query('metric_type=="{}"'.format(metric_type)), dv='metric', within='baseline', subject='subj_id', between='fb_type', padjust='fdr_bh')
 
 
-fig, axes = plt.subplots(2, 2, sharex='all', figsize=(9,4))
+fig, axes = plt.subplots(2, 2, figsize=(9,4))
 metric_types = ['magnitude', 'n_spindles', 'amplitude', 'duration']
 
 p_all = np.zeros((4, 4))
@@ -43,21 +43,22 @@ for j_metric_type, metric_type in enumerate(metric_types):
 
 
         pd.set_option('display.max_columns', 500)
-        res = pairwise_ttests(df, dv='metric', within='baseline', subject='subj_id')
-        p = res['p-unc'].values[0]
+        res = ttest(df.query('baseline=="After"')['metric'], df.query('baseline=="Before"')['metric'], paired=True)
+        # res = pairwise_ttests(df, dv='metric', within='baseline', subject='subj_id')
+        p = res['p-val'].values[0]
         p_all[j_fb_type, j_metric_type] = p
-        res_str = '$p_u$={:.3f}'.format(p)
+        res_str = '$p_u$={:.3f}\n'.format(p) + r'$Diff_{CI95}$=' + '[{}, {}]'.format(*res['CI95%'].values[0])
 
         x_before = df.query('baseline=="Before"')['metric'].values
         x_after = df.query('baseline=="After"')['metric'].values
         for j in range(len(x_before)):
             pair = np.array([x_before[j], x_after[j]])
             ax.plot(np.array([0, 2]) + 3*j_fb_type, pair, '--o', color='C3' if p<0.05 else 'k', linewidth=0.75, markersize=2, alpha=0.7)
-        ax.text(0+3*j_fb_type, 0.9*(df_metric_type['metric'].max()-df_metric_type['metric'].min()) + df_metric_type['metric'].min(), res_str, size=6, color='C3' if p < 0.05 else 'k')
+        ax.text(0+3*j_fb_type, 1.1*(df_metric_type['metric'].max()-df_metric_type['metric'].min()) + df_metric_type['metric'].min(), res_str, size=6, color='C3' if p < 0.05 else 'k')
 
 
         # ax.set_yticks([])
-        ax.set_title(['A. ', 'B. ', 'C. ', 'D. '][j_metric_type]+metric_type)
+        ax.set_title(['A. ', 'B. ', 'C. ', 'D. '][j_metric_type]+metric_type+'\n\n')
 
 for ax in axes.ravel():
     ax.set_xticks(np.arange(3*4))
