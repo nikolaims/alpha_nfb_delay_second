@@ -73,6 +73,7 @@ metrics_df = pd.DataFrame(columns=['subj_id', 'fb_type', 'k', 'metric_type', 'me
 
 shapiro_p_vals = []
 shapiro_names = []
+shapiro_samples = []
 for metric_type in metric_types:
     stats_all_th = []
     p_all_th = []
@@ -95,6 +96,7 @@ for metric_type in metric_types:
                          'metric_type': metric_type, 'metric': data_points[j,:]}))
             # if th == threshold or metric_type == 'magnitude':
             shapiro_p_vals.append([shapiro(x)[1] for x in data_points.T])
+            shapiro_samples.append([x for x in data_points.T])
             shapiro_names.append(['{} {} {} {}'.format(metric_type, fb_type, k, th) for k in range(1, 16)])
 
             fb_data_points.append(data_points[:, :])
@@ -155,6 +157,10 @@ fdr_p_shapiro = fdr_correction(shapiro_p_vals)
 shapiro_names = np.array(shapiro_names).ravel()
 print('FDR shapiro', shapiro_names[fdr_p_shapiro[0]])
 print('Bonferroni shapiro', shapiro_names[shapiro_p_vals < 0.05/len(shapiro_p_vals)])
+# plt.figure()
+# [plt.scatter(x, k*np.ones_like(x), alpha=0.2, color='k') for k, x in enumerate(np.array(shapiro_samples).flatten()[fdr_p_shapiro[0]])]
+# plt.yticks(np.arange(len(shapiro_names[fdr_p_shapiro[0]])), shapiro_names[fdr_p_shapiro[0]])
+# plt.tight_layout()
 
 fig.savefig('release/results/2a_magnitude_avg_vs_block.png', dpi=250)
 fig2.savefig('release/results/2b_metric_avg_vs_block.png', dpi=250)
@@ -203,7 +209,7 @@ fig.savefig('release/results/4_significance_heatmap.png', dpi=250)
 
 # figure z_scores
 
-comps_colors = ['C0', 'C2', 'C1', 'C5', 'C4', 'C6']
+comps_colors = ['C0', 'C2', 'C1', 'C4', 'C4', 'C6']
 fig, axes = plt.subplots(len(comps) + 1, len(metric_types), figsize=(6, 6))
 fig2, axes2 = plt.subplots(3, 3, figsize=(5, 4))
 
@@ -236,12 +242,12 @@ for j_metric_type, metric_type in enumerate(metric_types):
         ax_list = [axes[j_comp, j_metric_type]] + ([axes2[j_comp%3, j_comp//3]] if metric_type =='magnitude' else [])
         for ax in ax_list:
             significant = p_corrected[j_comp, th_index] < 0.05
-            if significant:
-                ax.set_facecolor('#eee9e9')
+            # if significant:
+            #     ax.set_facecolor('#eee9e9')
 
             best_z_score = z_score[th_index, j_comp]
             ax.plot(np.arange(len(unique_blocks))+1, best_z_score, 'o', markersize=1, linewidth=0.5,
-                    color=comps_colors[j_comp], zorder=1000)
+                    color=comps_colors[j_comp] if significant else '.2', zorder=1000)
 
             if PLOT_Z_SCORE_OPT_PROJ:
                 best_m = stats_extra[th_index, j_comp]
